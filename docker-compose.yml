@@ -1,0 +1,45 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: matchwork-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-matchwork_root_secret}
+      MYSQL_DATABASE: ${DB_NAME:-matchwork_db}
+      MYSQL_USER: ${DB_USER:-matchwork}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-matchwork_secret}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: matchwork-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_DIALECT: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-matchwork_db}
+      DB_USER: ${DB_USER:-matchwork}
+      DB_PASSWORD: ${DB_PASSWORD:-matchwork_secret}
+      JWT_SECRET: ${JWT_SECRET:-matchwork-production-jwt-secret-change-me}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
