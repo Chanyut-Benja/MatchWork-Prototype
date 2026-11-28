@@ -2,76 +2,103 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Briefcase,
   Building2,
-  Flame,
+  CheckCircle2,
   Heart,
   LogOut,
   PlusCircle,
+  Settings,
   ShieldCheck,
+  Terminal,
   UserCheck,
-  UserCog,
-  Users,
-  Zap,
 } from 'lucide-react';
 import AdminDashboard from '../components/AdminDashboard';
+import AdvancedFiltersBar from '../components/AdvancedFiltersBar';
 import ChatWindow from '../components/ChatWindow';
 import MatchSidebar from '../components/MatchSidebar';
-import ProfileModal from '../components/ProfileModal';
 import QuickAccountSwitcher from '../components/QuickAccountSwitcher';
 import SwipeDeck from '../components/SwipeDeck';
+import JobPostPage from './JobPostPage';
+import ProfileSettingsPage from './ProfileSettingsPage';
+import BrandMark from '../components/ui/BrandMark';
+import ThemeToggle from '../components/ui/ThemeToggle';
+import Toast from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
-import { authApi, matchingApi, profileApi } from '../services/api';
+import { useDashboardData } from '../hooks/useDashboardData';
 
-const FALLBACK_AVATAR =
-  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80';
-
-function getRoleBadgeStyle(role) {
-  switch ((role || '').toLowerCase()) {
-    case 'recruiter':
-      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-    case 'admin':
-      return 'bg-rose-50 text-rose-700 border-rose-200';
-    default:
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-  }
+function parseSettingsPath(pathname) {
+  if (!pathname.startsWith('/settings')) return null;
+  const parts = pathname.split('/').filter(Boolean);
+  return parts[1] || '';
 }
 
 export default function DashboardPage() {
   const { user, role, roleDisplay, logout } = useAuth();
   const isAdmin = (role || '').toLowerCase() === 'admin';
 
-  // Admin can preview either Candidate or Recruiter (Company) feed
   const [previewRole, setPreviewRole] = useState(() =>
     role === 'recruiter' ? 'recruiter' : 'candidate'
   );
-  const [personas, setPersonas] = useState({ candidates: [], jobs: [] });
   const [activePersonaId, setActivePersonaId] = useState(() => {
     if (role === 'recruiter') return user?.job_id || 'job_101';
     if (role === 'candidate') return user?.candidate_id || 'cand_1';
     return 'cand_1';
   });
 
-  // Feed & Interactions state
-  const [cards, setCards] = useState([]);
-  const [matchedTagIds, setMatchedTagIds] = useState(() => new Set());
-  const [isLoadingFeed, setIsLoadingFeed] = useState(true);
-  const [feedError, setFeedError] = useState('');
-  const [isActing, setIsActing] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-
-  // Matches & Saved Sidebar / Drawer
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [matches, setMatches] = useState([]);
-  const [savedItems, setSavedItems] = useState([]);
-
-  // Modals & Popovers
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState(() =>
+    parseSettingsPath(window.location.pathname)
+  );
+  const [isJobPostPage, setIsJobPostPage] = useState(
+    () => window.location.pathname === '/jobs/new'
+  );
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [activeChatMatch, setActiveChatMatch] = useState(null);
   const [toast, setToast] = useState(null);
-  const [matchCelebration, setMatchCelebration] = useState(null); // { title, subtitle }
 
   const effectiveRole = isAdmin ? previewRole : role === 'recruiter' ? 'recruiter' : 'candidate';
+  const isSettingsPage = settingsSection !== null;
+
+  useEffect(() => {
+    const onPopState = () => {
+      setSettingsSection(parseSettingsPath(window.location.pathname));
+      setIsJobPostPage(window.location.pathname === '/jobs/new');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const navigateToSettings = useCallback(
+    (section) => {
+      const defaultSection = effectiveRole === 'candidate' ? 'profile' : 'job-info';
+      const target = section || defaultSection;
+      const targetPath = `/settings/${target}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({}, '', targetPath);
+      }
+      setIsJobPostPage(false);
+      setSettingsSection(target);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [effectiveRole]
+  );
+
+  const navigateToJobPost = useCallback(() => {
+    if (window.location.pathname !== '/jobs/new') {
+      window.history.pushState({}, '', '/jobs/new');
+    }
+    setSettingsSection(null);
+    setIsJobPostPage(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const navigateToDashboard = useCallback(() => {
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+    setSettingsSection(null);
+    setIsJobPostPage(false);
+  }, []);
 
   const showToast = useCallback((title, message, type = 'info') => {
     setToast({ title, message, type });
@@ -83,249 +110,62 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // Load personas list
-  useEffect(() => {
-    let active = true;
-    authApi
-      .getPersonas()
-      .then((res) => {
-        if (active && res?.success && res?.data) {
-          setPersonas(res.data);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Load Feed, Matches, and Saved items whenever effectiveRole or activePersonaId changes
-  const loadDashboardData = useCallback(async () => {
-    setIsLoadingFeed(true);
-    setFeedError('');
-    try {
-      const [feedRes, matchesRes, savedRes] = await Promise.all([
-        matchingApi.getFeed(effectiveRole, activePersonaId),
-        matchingApi.getMatches(effectiveRole, activePersonaId),
-        matchingApi.getInteractions({
-          role: effectiveRole,
-          id: activePersonaId,
-          action: 'save',
-        }),
-      ]);
-
-      setCards(feedRes?.data || []);
-      setMatches(matchesRes?.data || []);
-      setSavedItems(savedRes?.data || []);
-    } catch (err) {
-      setFeedError(err?.response?.data?.message || 'ไม่สามารถโหลดข้อมูล Feed ได้');
-    } finally {
-      setIsLoadingFeed(false);
-    }
-  }, [effectiveRole, activePersonaId]);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  // Resolve matched tag IDs for the top card so JobCard highlights Matched Tags clearly
-  const topCardId = cards[0]?.card_id;
-  useEffect(() => {
-    let active = true;
-    async function loadMatchedTags() {
-      if (!topCardId) {
-        if (active) setMatchedTagIds(new Set());
-        return;
-      }
-      try {
-        if (effectiveRole === 'candidate') {
-          const res = await profileApi.getCandidateTags(activePersonaId);
-          if (active) {
-            setMatchedTagIds(new Set((res?.tags || []).map((t) => t.tag_id)));
-          }
-        } else {
-          const compositeId = `${topCardId}_${activePersonaId}`;
-          const res = await matchingApi.getBreakdown(compositeId, {
-            candidate_id: topCardId,
-            job_id: activePersonaId,
-          });
-          if (active) {
-            const breakdown = res?.data?.technical_breakdown || res?.breakdown || [];
-            const ids = breakdown
-              .filter((b) => b.status === 'matched')
-              .map((b) => b.tag_id);
-            setMatchedTagIds(new Set(ids));
-          }
-        }
-      } catch {
-        if (active) setMatchedTagIds(new Set());
-      }
-    }
-    loadMatchedTags();
-    return () => {
-      active = false;
-    };
-  }, [effectiveRole, activePersonaId, topCardId]);
+  const {
+    personas,
+    cards,
+    matchedTagIds,
+    isLoadingFeed,
+    feedError,
+    isActing,
+    isSimulating,
+    matches,
+    savedItems,
+    historyItems,
+    closingSoonCount,
+    canUndo,
+    filters,
+    setFilters,
+    resetFilters,
+    matchCelebration,
+    setMatchCelebration,
+    loadDashboardData,
+    handleCardSwipe,
+    handleUndoLast,
+    handleRestoreInteraction,
+    handleUpdateInteractionAction,
+    handleSimulateMatch,
+    handleConnectMatch,
+    handleResetFeed,
+  } = useDashboardData({ effectiveRole, activePersonaId, showToast });
 
   const handleAdminPreviewChange = (nextRole) => {
     setPreviewRole(nextRole);
     if (nextRole === 'candidate') {
-      const firstCand = personas.candidates?.[0]?.id || 'cand_1';
-      setActivePersonaId(firstCand);
+      setActivePersonaId(personas.candidates?.[0]?.id || 'cand_1');
     } else {
-      const firstJob = personas.jobs?.[0]?.id || 'job_101';
-      setActivePersonaId(firstJob);
+      setActivePersonaId(personas.jobs?.[0]?.id || 'job_101');
     }
   };
 
-  const handleCardSwipe = useCallback(
-    async (action, card) => {
-      if (!card || isActing) return;
-      setIsActing(true);
-
-      const candidateId = effectiveRole === 'candidate' ? activePersonaId : card.card_id;
-      const jobId = effectiveRole === 'recruiter' ? activePersonaId : card.card_id;
-
-      try {
-        const res = await matchingApi.createInteraction({
-          candidate_id: candidateId,
-          job_id: jobId,
-          initiator_role: effectiveRole,
-          action,
-        });
-
-        setCards((prev) => prev.slice(1));
-
-        if (res?.is_matched) {
-          setMatchCelebration({
-            title: effectiveRole === 'candidate' ? card.title : card.full_name || card.name,
-            subtitle: effectiveRole === 'candidate' ? card.company_name : card.title,
-          });
-          showToast('It’s a Match!', 'จับคู่สำเร็จทั้งสองฝ่ายแล้ว', 'success');
-        } else if (action === 'save') {
-          showToast('บันทึกการ์ดแล้ว', 'เพิ่มลงในรายการที่บันทึกไว้เรียบร้อย', 'info');
-        } else if (action === 'express_interest') {
-          showToast('ส่งความสนใจแล้ว', 'ระบบบันทึกความสนใจของคุณเรียบร้อย', 'success');
-        }
-
-        const [matchesRes, savedRes] = await Promise.all([
-          matchingApi.getMatches(effectiveRole, activePersonaId),
-          matchingApi.getInteractions({
-            role: effectiveRole,
-            id: activePersonaId,
-            action: 'save',
-          }),
-        ]);
-        setMatches(matchesRes?.data || []);
-        setSavedItems(savedRes?.data || []);
-      } catch (err) {
-        showToast(
-          'เกิดข้อผิดพลาด',
-          err?.response?.data?.message || 'ไม่สามารถบันทึกการปัดการ์ดได้',
-          'error'
-        );
-      } finally {
-        setIsActing(false);
-      }
-    },
-    [isActing, effectiveRole, activePersonaId, showToast]
-  );
-
-  const handleSimulateMatch = async () => {
-    if (isSimulating) return;
-    setIsSimulating(true);
-    try {
-      const targetCard = cards[0];
-      const candidateId =
-        effectiveRole === 'candidate'
-          ? activePersonaId
-          : targetCard?.card_id || personas.candidates?.[0]?.id || 'cand_1';
-      const jobId =
-        effectiveRole === 'recruiter'
-          ? activePersonaId
-          : targetCard?.card_id || personas.jobs?.[0]?.id || 'job_101';
-
-      await matchingApi.simulateMatch({
-        candidate_id: candidateId,
-        job_id: jobId,
-        initiator_role: effectiveRole,
-      });
-
-      // Refresh matches & feed so partner profile is 100% accurate and never swapped
-      const [matchesRes, feedRes] = await Promise.all([
-        matchingApi.getMatches(effectiveRole, activePersonaId),
-        matchingApi.getFeed(effectiveRole, activePersonaId),
-      ]);
-
-      const updatedMatches = matchesRes?.data || [];
-      setMatches(updatedMatches);
-      setCards(feedRes?.data || []);
-
-      const createdMatch = updatedMatches.find(
-        (m) => m.candidate_id === candidateId && m.job_id === jobId
-      );
-
-      if (createdMatch) {
-        const isCandView = effectiveRole === 'candidate';
-        setMatchCelebration({
-          title: isCandView ? createdMatch.job_title : createdMatch.candidate_name,
-          subtitle: isCandView ? createdMatch.company_name : createdMatch.candidate_title,
-        });
-      }
-      showToast('Simulate Match สำเร็จ', 'อัปเดตคู่ Match ใหม่เรียบร้อยแล้ว', 'success');
-    } catch (err) {
-      showToast(
-        'จำลอง Match ไม่สำเร็จ',
-        err?.response?.data?.message || 'เกิดข้อผิดพลาดในการจำลอง Match',
-        'error'
-      );
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  const handleConnectMatch = async (match) => {
-    const matchId = match.match_id || `${match.candidate_id}_${match.job_id}`;
-    try {
-      await matchingApi.connectMatch(matchId, {
-        candidate_id: match.candidate_id,
-        job_id: match.job_id,
-      });
-      const matchesRes = await matchingApi.getMatches(effectiveRole, activePersonaId);
-      setMatches(matchesRes?.data || []);
-      showToast('เชื่อมต่อสำเร็จ', 'ปลดล็อกข้อมูลติดต่อและลิงก์สัมภาษณ์แล้ว', 'success');
-    } catch (err) {
-      showToast(
-        'เชื่อมต่อไม่สำเร็จ',
-        err?.response?.data?.message || 'ไม่สามารถเชื่อมต่อได้',
-        'error'
-      );
-    }
-  };
-
-  const handleResetFeed = async () => {
-    setIsLoadingFeed(true);
-    try {
-      await matchingApi.resetFeed(effectiveRole, activePersonaId);
-      await loadDashboardData();
-      showToast('รีเซ็ตการ์ดสำเร็จ', 'โหลดการ์ดทั้งหมดกลับมาใหม่แล้ว', 'info');
-    } catch {
-      showToast('ผิดพลาด', 'ไม่สามารถรีเซ็ตการ์ดได้', 'error');
-      setIsLoadingFeed(false);
-    }
-  };
-
-  // Keyboard navigation (Left=Pass, Up=Save, Right=Like)
   useEffect(() => {
     const onKeyDown = (e) => {
       if (
         isDrawerOpen ||
         matchCelebration ||
         isSwitcherOpen ||
-        isProfileModalOpen ||
+        isSettingsPage ||
+        isJobPostPage ||
         isAdminModalOpen ||
         activeChatMatch
       ) {
+        return;
+      }
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+        return;
+      }
+      if ((e.key === 'z' || e.key === 'Z') && canUndo) {
+        handleUndoLast();
         return;
       }
       const topCard = cards[0];
@@ -338,11 +178,14 @@ export default function DashboardPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     cards,
+    canUndo,
     handleCardSwipe,
+    handleUndoLast,
     isDrawerOpen,
     matchCelebration,
     isSwitcherOpen,
-    isProfileModalOpen,
+    isSettingsPage,
+    isJobPostPage,
     isAdminModalOpen,
     activeChatMatch,
   ]);
@@ -351,147 +194,182 @@ export default function DashboardPage() {
     return effectiveRole === 'candidate' ? personas.candidates || [] : personas.jobs || [];
   }, [effectiveRole, personas]);
 
+  if (isJobPostPage) {
+    return (
+      <>
+        <JobPostPage
+          user={user}
+          onBack={navigateToDashboard}
+          onCreated={(result) => {
+            if (result?.data?.job_id) {
+              setActivePersonaId(result.data.job_id);
+            }
+            loadDashboardData();
+            navigateToDashboard();
+            showToast(
+              'เผยแพร่ประกาศงานสำเร็จ',
+              result?.message || 'สร้างประกาศงานใหม่และคำนวณผู้สมัครที่ตรงกันแล้ว',
+              'success'
+            );
+          }}
+          onNotify={showToast}
+        />
+        <Toast toast={toast} onDismiss={() => setToast(null)} />
+      </>
+    );
+  }
+
+  if (isSettingsPage) {
+    return (
+      <>
+        <ProfileSettingsPage
+          effectiveRole={effectiveRole}
+          activePersonaId={activePersonaId}
+          setActivePersonaId={setActivePersonaId}
+          isAdmin={isAdmin}
+          personaOptions={personaOptions}
+          user={user}
+          activeSection={settingsSection}
+          onNavigateSection={navigateToSettings}
+          onBack={navigateToDashboard}
+          onSaved={(result) => {
+            loadDashboardData();
+            showToast(
+              'บันทึกสำเร็จ',
+              result?.message || 'อัปเดตข้อมูลและคำนวณคะแนนใหม่แล้ว',
+              'success'
+            );
+          }}
+          onNotify={showToast}
+        />
+        <Toast toast={toast} onDismiss={() => setToast(null)} />
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col overflow-x-hidden">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3">
-          {/* Left: Brand + Role Pill */}
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#2563EB] via-[#4F46E5] to-[#EC4899] flex items-center justify-center shadow-md shadow-blue-600/20 shrink-0">
-              <Flame className="w-4 h-4 text-white fill-white" />
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <span className="hidden sm:inline font-extrabold text-base sm:text-lg tracking-tight text-slate-900">
-                MATCH<span className="text-[#2563EB]">WORK</span>
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border shrink-0 ${getRoleBadgeStyle(
-                  role
-                )}`}
-              >
-                {roleDisplay}
-              </span>
-            </div>
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0B0C] text-[#111111] dark:text-neutral-100 flex flex-col overflow-x-hidden">
+      {/* Top Bar */}
+      <header className="sticky top-0 z-30 h-14 bg-white dark:bg-[#141416] border-b border-neutral-200 dark:border-neutral-800">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-3">
+          {/* Left: Brand + Role */}
+          <div className="flex items-center gap-3 min-w-0">
+            <BrandMark size="sm" />
+            <span className="hidden sm:inline-block h-4 w-px bg-neutral-200 dark:bg-neutral-800" />
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 font-mono-num text-[11px] font-medium text-neutral-700 dark:text-neutral-300">
+              {roleDisplay}
+            </span>
           </div>
 
-          {/* Center: Admin View Switcher (Desktop >= lg) */}
+          {/* Center: Admin View Toggle */}
           {isAdmin && (
-            <div className="hidden lg:flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0">
+            <div className="hidden md:flex items-center border border-neutral-200 dark:border-neutral-800 rounded-md p-0.5 bg-neutral-50 dark:bg-neutral-900">
               <button
                 type="button"
                 onClick={() => handleAdminPreviewChange('candidate')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                  previewRole === 'candidate'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                className={`px-2.5 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  effectiveRole === 'candidate'
+                    ? 'bg-white dark:bg-[#141416] text-[#111111] dark:text-white border border-neutral-200 dark:border-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-[#111111] dark:hover:text-white'
                 }`}
               >
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>มุมมอง Candidate</span>
+                มุมมองผู้หางาน
               </button>
               <button
                 type="button"
                 onClick={() => handleAdminPreviewChange('recruiter')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                  previewRole === 'recruiter'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                className={`px-2.5 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  effectiveRole === 'recruiter'
+                    ? 'bg-white dark:bg-[#141416] text-[#111111] dark:text-white border border-neutral-200 dark:border-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-[#111111] dark:hover:text-white'
                 }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
-                <span>มุมมอง Company</span>
+                มุมมองบริษัท
               </button>
             </div>
           )}
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Profile / Post Job Button */}
-            <button
-              type="button"
-              onClick={() => setIsProfileModalOpen(true)}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-              title={effectiveRole === 'candidate' ? 'แก้ไขโปรไฟล์และแท็ก' : 'สร้างประกาศงานใหม่'}
-            >
-              {effectiveRole === 'candidate' ? (
-                <>
-                  <UserCog className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden md:inline">โปรไฟล์</span>
-                </>
-              ) : (
-                <>
-                  <PlusCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden md:inline">โพสต์งาน</span>
-                </>
-              )}
-            </button>
+          <div className="flex items-center gap-2">
+            {effectiveRole === 'recruiter' && (
+              <button
+                type="button"
+                onClick={navigateToJobPost}
+                className="px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] hover:border-[#111111] dark:hover:border-neutral-600 text-xs font-medium text-[#111111] dark:text-neutral-100 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">ประกาศงานใหม่</span>
+              </button>
+            )}
 
-            {/* Admin Console Button (Only visible to Admin role) */}
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => setIsAdminModalOpen(true)}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                title="Admin Management Console"
+                className="px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] hover:border-[#111111] dark:hover:border-neutral-600 text-xs font-medium text-[#111111] dark:text-neutral-100 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <ShieldCheck className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden md:inline">Admin</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                <span className="hidden sm:inline">จัดการระบบ</span>
               </button>
             )}
 
-            {/* Mobile/Tablet Matches Drawer Toggle */}
             <button
               type="button"
               onClick={() => setIsDrawerOpen(true)}
-              className="lg:hidden relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+              className="lg:hidden px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] text-xs font-medium text-[#111111] dark:text-neutral-100 inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white leading-none">
-                {matches.length}
-              </span>
+              <Heart className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+              <span className="font-mono-num">{matches.length}</span>
             </button>
 
-            {/* Quick Account Switcher */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsSwitcherOpen((prev) => !prev)}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                title="สลับบัญชีทดสอบอย่างรวดเร็ว"
+                className="px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hover:bg-white dark:hover:bg-[#141416] text-xs font-medium text-neutral-700 dark:text-neutral-200 inline-flex items-center gap-1.5 cursor-pointer"
+                title="สลับบัญชีทดสอบ (Demo)"
               >
-                <Zap className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-amber-500 fill-amber-500" />
-                <span className="hidden sm:inline">Switch</span>
+                <Terminal className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span className="hidden md:inline">Demo</span>
               </button>
 
               {isSwitcherOpen && (
-                <div className="absolute right-0 mt-2 z-50 animate-pop-in">
-                  <QuickAccountSwitcher
-                    variant="compact"
-                    onSwitched={() => setIsSwitcherOpen(false)}
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSwitcherOpen(false)}
                   />
-                </div>
+                  <div className="absolute right-0 mt-2 z-50">
+                    <QuickAccountSwitcher
+                      variant="compact"
+                      onSwitched={() => setIsSwitcherOpen(false)}
+                    />
+                  </div>
+                </>
               )}
             </div>
 
-            {/* User Avatar */}
-            <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-200">
-              <img
-                src={user?.avatar || FALLBACK_AVATAR}
-                alt={user?.name || 'User'}
-                className="w-8 h-8 rounded-full object-cover border border-slate-200"
-              />
-              <div className="text-left leading-tight max-w-[120px]">
-                <div className="text-xs font-bold text-slate-900 truncate">{user?.name}</div>
-                <div className="text-[10px] text-slate-500 truncate">{user?.email}</div>
-              </div>
-            </div>
+            <ThemeToggle />
+
+            <button
+              type="button"
+              onClick={() => navigateToSettings(effectiveRole === 'candidate' ? 'profile' : 'notifications')}
+              className="px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] hover:border-[#111111] dark:hover:border-neutral-600 text-xs font-medium text-[#111111] dark:text-neutral-100 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="ตั้งค่าและบัญชีผู้ใช้"
+              aria-label="ตั้งค่าและบัญชีผู้ใช้"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">ตั้งค่า</span>
+            </button>
 
             <button
               type="button"
               onClick={logout}
-              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+              className="p-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] hover:border-red-300 dark:hover:border-red-800 hover:text-red-700 dark:hover:text-red-400 text-neutral-600 dark:text-neutral-300 transition-colors cursor-pointer"
               title="ออกจากระบบ"
+              aria-label="ออกจากระบบ"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -499,126 +377,134 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Responsive Layout: SwipeDeck + Persistent Desktop MatchSidebar */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8 flex flex-col lg:flex-row items-start justify-center gap-7">
-        {/* Left/Center: Feed & SwipeDeck */}
-        <div className="w-full flex-1 flex flex-col items-center">
-          {/* Tablet/Mobile Admin View Switcher */}
-          {isAdmin && (
-            <div className="lg:hidden w-full max-w-lg flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 mb-4">
-              <button
-                type="button"
-                onClick={() => handleAdminPreviewChange('candidate')}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  previewRole === 'candidate'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                <span>มุมมอง Candidate</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAdminPreviewChange('recruiter')}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  previewRole === 'recruiter'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>มุมมอง Company</span>
-              </button>
-            </div>
-          )}
-
-          {/* Feed Sub-header */}
-          <div className="w-full max-w-lg flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+      {/* Main Workspace */}
+      <div className="flex-1 flex max-w-[1440px] w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8 flex flex-col">
+          {/* Context Strip */}
+          <div className="max-w-[480px] w-full mx-auto mb-5 flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-neutral-200 dark:border-neutral-800">
+            <div>
+              <p className="font-mono-num text-[10px] uppercase tracking-widest text-neutral-400">
+                {effectiveRole === 'candidate' ? 'Candidate Discover' : 'Recruiter Discover'}
+              </p>
+              <h1 className="text-base font-semibold text-[#111111] dark:text-white flex items-center gap-2 mt-0.5">
                 {effectiveRole === 'candidate' ? (
                   <>
-                    <Briefcase className="w-5 h-5 text-blue-600 shrink-0" />
-                    <span className="truncate">ตำแหน่งงานที่แนะนำสำหรับคุณ</span>
+                    <Briefcase className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+                    <span>ตำแหน่งงานที่แนะนำสำหรับคุณ</span>
                   </>
                 ) : (
                   <>
-                    <Users className="w-5 h-5 text-indigo-600 shrink-0" />
-                    <span className="truncate">ผู้สมัครที่ตรงกับตำแหน่งของคุณ</span>
+                    <UserCheck className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+                    <span>ผู้สมัครที่ตรงกับตำแหน่งงาน</span>
                   </>
                 )}
               </h1>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                เรียงตามคะแนน Tag-Weighted Compatibility • เหลือ {cards.length} การ์ด
-              </p>
             </div>
 
             {isAdmin && personaOptions.length > 0 && (
               <select
                 value={activePersonaId}
                 onChange={(e) => setActivePersonaId(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 max-w-full"
+                className="px-2.5 py-1.5 text-xs border border-neutral-200 dark:border-neutral-800 rounded-md bg-white dark:bg-[#141416] text-[#111111] dark:text-neutral-100 focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
               >
                 {personaOptions.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name || p.title} {p.company ? `(${p.company})` : ''}
+                    {p.name || p.title}
                   </option>
                 ))}
               </select>
             )}
           </div>
 
-          {/* SwipeDeck */}
-          <div className="w-full max-w-lg">
+          <div className="flex-1 flex flex-col justify-center">
+            <AdvancedFiltersBar
+              filters={filters}
+              onChange={setFilters}
+              onReset={resetFilters}
+              effectiveRole={effectiveRole}
+            />
+
             <SwipeDeck
               cards={cards}
               matchedTagIds={matchedTagIds}
               isLoading={isLoadingFeed}
               error={feedError}
               isActing={isActing}
+              canUndo={canUndo}
               onSwipe={handleCardSwipe}
+              onUndo={handleUndoLast}
               onReset={handleResetFeed}
               onRetry={loadDashboardData}
             />
-          </div>
-        </div>
 
-        {/* Right: MatchSidebar (Desktop Persistent + Mobile Drawer) */}
+            <p className="text-center text-[11px] text-neutral-400 font-mono-num mt-5">
+              คีย์ลัด: ← ข้าม · ↑ บันทึก · → สนใจ · Z ย้อนกลับ
+            </p>
+          </div>
+        </main>
+
         <MatchSidebar
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
           effectiveRole={effectiveRole}
           matches={matches}
           savedItems={savedItems}
+          historyItems={historyItems}
+          closingSoonCount={closingSoonCount}
           isSimulating={isSimulating}
           onSimulateMatch={handleSimulateMatch}
           onConnectMatch={handleConnectMatch}
-          onOpenChat={(match) => {
-            setActiveChatMatch(match);
-            setIsDrawerOpen(false);
-          }}
+          onOpenChat={(match) => setActiveChatMatch(match)}
+          onRestoreItem={handleRestoreInteraction}
+          onUpdateAction={handleUpdateInteractionAction}
+          isDrawerOpen={isDrawerOpen}
+          onCloseDrawer={() => setIsDrawerOpen(false)}
         />
-      </main>
+      </div>
 
-      {/* Profile / Post Job Modal */}
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        effectiveRole={effectiveRole}
-        activePersonaId={activePersonaId}
-        user={user}
-        onSaved={(result) => {
-          showToast('บันทึกสำเร็จ', result.message, 'success');
-          if (result.type === 'job' && result.job?.job_id && isAdmin) {
-            setActivePersonaId(result.job.job_id);
-          } else {
-            loadDashboardData();
-          }
-        }}
-      />
+      {/* Match Celebration Modal */}
+      {matchCelebration && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setMatchCelebration(null)}
+        >
+          <div
+            className="bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg max-w-sm w-full p-6 text-center shadow-lg animate-editorial-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-11 h-11 rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <p className="font-mono-num text-[11px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-medium">
+              Mutual Match
+            </p>
+            <h3 className="text-lg font-semibold text-[#111111] dark:text-white mt-1">
+              {matchCelebration.title}
+            </h3>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 mb-5">
+              {matchCelebration.subtitle}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMatchCelebration(null)}
+                className="flex-1 py-2 px-3 rounded-md border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900 text-xs font-medium text-neutral-700 dark:text-neutral-200 cursor-pointer"
+              >
+                ปัดการ์ดต่อ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMatchCelebration(null);
+                  setIsDrawerOpen(true);
+                }}
+                className="flex-1 py-2 px-3 rounded-md bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-[#111111] text-xs font-medium cursor-pointer"
+              >
+                ดูรายการจับคู่
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Admin Dashboard Modal (Admin Role Only) */}
       {isAdmin && (
         <AdminDashboard
           isOpen={isAdminModalOpen}
@@ -627,31 +513,6 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Match Celebration Modal */}
-      {matchCelebration && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-7 max-w-sm w-full text-center shadow-2xl animate-pop-in">
-            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-tr from-[#2563EB] to-[#EC4899] text-white flex items-center justify-center shadow-lg mb-4">
-              <Heart className="w-8 h-8 fill-white" />
-            </div>
-            <h3 className="text-2xl font-extrabold text-slate-900">It’s a Match!</h3>
-            <p className="text-xs sm:text-sm text-slate-600 mt-2">
-              จับคู่สำเร็จกับ{' '}
-              <span className="font-bold text-slate-900">{matchCelebration.title}</span>
-              {matchCelebration.subtitle ? ` (${matchCelebration.subtitle})` : ''}
-            </p>
-            <button
-              type="button"
-              onClick={() => setMatchCelebration(null)}
-              className="mt-6 w-full py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
-            >
-              ดำเนินการต่อ
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Real-time Chat Window Modal */}
       <ChatWindow
         isOpen={Boolean(activeChatMatch)}
         onClose={() => setActiveChatMatch(null)}
@@ -660,16 +521,31 @@ export default function DashboardPage() {
         currentUser={user}
       />
 
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 max-w-xs animate-pop-in">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-          <div>
-            <div className="text-xs font-bold">{toast.title}</div>
-            <div className="text-[11px] text-slate-300">{toast.message}</div>
-          </div>
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
+
+      {/* Floating Matches Button (Bottom-Right) */}
+      <div className="fixed bottom-6 right-6 z-40 group">
+        <div
+          role="tooltip"
+          className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full right-0 mb-2.5 whitespace-nowrap px-3 py-1.5 rounded-md bg-[#111111] dark:bg-white text-white dark:text-[#111111] text-xs font-medium shadow-md"
+        >
+          แสดงรายการจับคู่ (Matches)
         </div>
-      )}
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          aria-label="แสดงรายการจับคู่ (Matches)"
+          title="แสดงรายการจับคู่ (Matches)"
+          className="relative w-12 h-12 rounded-full bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-[#111111] shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer border border-neutral-800 dark:border-neutral-200"
+        >
+          <Heart className="w-5 h-5 text-emerald-400 dark:text-emerald-600" />
+          {matches.length > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-emerald-600 text-white font-mono-num text-[11px] font-semibold flex items-center justify-center border-2 border-[#FAFAFA] dark:border-[#0B0B0C]">
+              {matches.length}
+            </span>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

@@ -30,6 +30,8 @@ const candidateProfiles = [
     title: 'Senior Full-Stack Engineer',
     experience_years: 5,
     location: 'Bangkok, Thailand',
+    latitude: 13.7563,
+    longitude: 100.5018,
     expected_salary: 85000,
     work_style: 'hybrid',
     bio: 'Full-Stack Developer หลงใหลใน Modern Web Stack เชี่ยวชาญ Node.js และ React ออกแบบระบบ Scalable Microservices และ CI/CD พร้อมร่วมงานกับทีม High-Performance'
@@ -43,6 +45,8 @@ const candidateProfiles = [
     title: 'Product & UI/UX Designer',
     experience_years: 4,
     location: 'Chiang Mai, Thailand',
+    latitude: 18.7883,
+    longitude: 98.9853,
     expected_salary: 65000,
     work_style: 'remote',
     bio: 'Product Designer ที่รักการแปลงโจทย์ธุรกิจที่ซับซ้อนให้เป็น User Flow ที่เรียบง่าย มีทักษะด้าน Design System บน Figma และพื้นฐาน Tailwind CSS'
@@ -56,6 +60,8 @@ const candidateProfiles = [
     title: 'DevOps & Cloud Architect',
     experience_years: 6,
     location: 'Bangkok, Thailand',
+    latitude: 13.7460,
+    longitude: 100.5347,
     expected_salary: 95000,
     work_style: 'remote',
     bio: 'ผู้เชี่ยวชาญด้าน Cloud Infrastructure, Docker, Kubernetes และ AWS ออโตเมตระบบด้วย Terraform และชำนาญการทำ Zero-Downtime Deployment'
@@ -69,6 +75,8 @@ const candidateProfiles = [
     title: 'Frontend React/Next.js Specialist',
     experience_years: 3,
     location: 'Bangkok, Thailand',
+    latitude: 13.7248,
+    longitude: 100.5290,
     expected_salary: 55000,
     work_style: 'hybrid',
     bio: 'Frontend Developer สไตล์ Pixel-Perfect ถนัด React, TypeScript, Next.js และ Tailwind CSS ให้ความสำคัญกับ Web Performance และ Accessible Design'
@@ -115,7 +123,11 @@ const jobPostings = [
     min_salary: 80000,
     max_salary: 110000,
     location: 'Bangkok (BTS Asoke)',
+    latitude: 13.7367,
+    longitude: 100.5603,
     work_style: 'hybrid',
+    employment_type: 'full-time',
+    application_deadline: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
     description: 'มองหา Full-Stack Engineer มาร่วมสร้างระบบ FinTech Platform รองรับผู้ใช้งานกว่า 1M+ Active Users เน้นเทคโนโลยี Node.js, React และ AWS Cloud',
     contact_email: 'careers@techscale.io',
     contact_phone: '+66 2 987 6543',
@@ -130,7 +142,11 @@ const jobPostings = [
     min_salary: 90000,
     max_salary: 130000,
     location: 'Bangkok (Remote-friendly)',
+    latitude: 13.7465,
+    longitude: 100.5347,
     work_style: 'remote',
+    employment_type: 'full-time',
+    application_deadline: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
     description: 'ดูแลโครงสร้างพื้นฐานบน AWS Multi-Region, บริหารจัดการ Kubernetes Clusters, วางระบบ CI/CD pipeline และสร้าง Observability stack',
     contact_email: 'talent@cloudnative.tech',
     contact_phone: '+66 2 456 7890',
@@ -145,7 +161,11 @@ const jobPostings = [
     min_salary: 60000,
     max_salary: 85000,
     location: 'Bangkok (Silom)',
+    latitude: 13.7285,
+    longitude: 100.5340,
     work_style: 'hybrid',
+    employment_type: 'full-time',
+    application_deadline: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
     description: 'ออกแบบประสบการณ์ใช้งานแอปพลิเคชันยุคใหม่ ทำงานใกล้ชิดกับทีม Product และ Developers ทำ Design Tokens และ Design System บน Figma',
     contact_email: 'hr@pixelcraft.design',
     contact_phone: '+66 2 333 4444',
@@ -160,10 +180,52 @@ const jobPostings = [
     min_salary: 50000,
     max_salary: 75000,
     location: 'Bangkok (Sathorn)',
+    latitude: 13.7204,
+    longitude: 100.5292,
     work_style: 'hybrid',
+    employment_type: 'full-time',
+    application_deadline: new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10),
     description: 'ร่วมพัฒนา Web Portal ของระบบชำระเงินข้ามพรมแดนด้วย React 18, Next.js, Tailwind CSS และเชื่อมต่อ REST/GraphQL APIs',
     contact_email: 'recruiting@finflow.com',
     contact_phone: '+66 2 555 1234',
+    status: 'active'
+  },
+  {
+    job_id: 'job_105',
+    company_name: 'Lanna Digital Labs',
+    company_logo: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=150&q=80',
+    title: 'Backend TypeScript Contractor',
+    experience_years_requirement: 3,
+    min_salary: 65000,
+    max_salary: 95000,
+    location: 'Chiang Mai (Nimman)',
+    latitude: 18.7984,
+    longitude: 98.9675,
+    work_style: 'onsite',
+    employment_type: 'contract',
+    application_deadline: new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10),
+    description: 'สัญญาจ้าง 6 เดือน พัฒนา API Gateway และ Microservices ด้วย Node.js, TypeScript และ PostgreSQL ที่ออฟฟิศเชียงใหม่',
+    contact_email: 'jobs@lannalabs.th',
+    contact_phone: '+66 53 222 888',
+    status: 'active'
+  },
+  {
+    job_id: 'job_106',
+    company_name: 'Siam Commerce Hub',
+    company_logo: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=150&q=80',
+    title: 'Part-time Next.js Specialist',
+    experience_years_requirement: 1,
+    min_salary: 30000,
+    max_salary: 45000,
+    location: 'Bangkok (Ari)',
+    latitude: 13.7796,
+    longitude: 100.5447,
+    work_style: 'onsite',
+    employment_type: 'part-time',
+    application_deadline: new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10),
+    description: 'ร่วมปรับปรุงประสิทธิภาพ Storefront ด้วย Next.js และ Tailwind CSS ทำงานแบบ Part-time 3 วัน/สัปดาห์',
+    contact_email: 'talent@siamcommerce.co.th',
+    contact_phone: '+66 2 619 7777',
     status: 'active'
   }
 ];
@@ -193,7 +255,18 @@ const jobTags = [
   { id: 115, job_id: 'job_104', tag_id: 2, weight: 0.95 }, // React.js
   { id: 116, job_id: 'job_104', tag_id: 3, weight: 0.85 }, // TypeScript
   { id: 117, job_id: 'job_104', tag_id: 9, weight: 0.80 }, // Tailwind CSS
-  { id: 118, job_id: 'job_104', tag_id: 14, weight: 0.75 }  // Next.js
+  { id: 118, job_id: 'job_104', tag_id: 14, weight: 0.75 }, // Next.js
+
+  // job_105 (Backend Contractor)
+  { id: 119, job_id: 'job_105', tag_id: 1, weight: 0.95 }, // Node.js
+  { id: 120, job_id: 'job_105', tag_id: 3, weight: 0.90 }, // TypeScript
+  { id: 121, job_id: 'job_105', tag_id: 6, weight: 0.85 }, // PostgreSQL
+  { id: 122, job_id: 'job_105', tag_id: 4, weight: 0.70 }, // Docker
+
+  // job_106 (Part-time Next.js)
+  { id: 123, job_id: 'job_106', tag_id: 2, weight: 0.90 }, // React.js
+  { id: 124, job_id: 'job_106', tag_id: 14, weight: 0.90 }, // Next.js
+  { id: 125, job_id: 'job_106', tag_id: 9, weight: 0.85 }  // Tailwind CSS
 ];
 
 const initialInteractions = [

@@ -1,12 +1,5 @@
 import { useRef, useState } from 'react';
-import {
-  Bookmark,
-  CheckCircle2,
-  Heart,
-  Loader2,
-  RefreshCw,
-  X,
-} from 'lucide-react';
+import { Bookmark, CheckCircle2, Heart, Loader2, RefreshCw, RotateCcw, X } from 'lucide-react';
 import JobCard from './JobCard';
 
 const SWIPE_THRESHOLD_X = 95;
@@ -18,13 +11,15 @@ export default function SwipeDeck({
   isLoading = false,
   error = '',
   isActing = false,
+  canUndo = false,
   onSwipe,
+  onUndo,
   onReset,
   onRetry,
 }) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [flyOut, setFlyOut] = useState(null); // { x, y, rotate } | null
+  const [flyOut, setFlyOut] = useState(null);
   const startPointRef = useRef(null);
 
   const currentCard = cards[0] || null;
@@ -34,9 +29,9 @@ export default function SwipeDeck({
     if (!currentCard || isActing || flyOut) return;
 
     let target = { x: 0, y: 0, rotate: 0 };
-    if (action === 'skip') target = { x: -420, y: 40, rotate: -18 };
-    else if (action === 'express_interest') target = { x: 420, y: 40, rotate: 18 };
-    else if (action === 'save') target = { x: 0, y: -380, rotate: 0 };
+    if (action === 'skip') target = { x: -420, y: 30, rotate: -10 };
+    else if (action === 'express_interest') target = { x: 420, y: 30, rotate: 10 };
+    else if (action === 'save') target = { x: 0, y: -360, rotate: 0 };
 
     setIsDragging(false);
     setFlyOut(target);
@@ -45,12 +40,11 @@ export default function SwipeDeck({
       setFlyOut(null);
       setDragOffset({ x: 0, y: 0 });
       onSwipe(action, currentCard);
-    }, 240);
+    }, 220);
   };
 
   const handlePointerDown = (e) => {
     if (!currentCard || isActing || flyOut) return;
-    // Ignore clicks on buttons inside the card if any
     if (e.target.closest('button')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     startPointRef.current = { x: e.clientX, y: e.clientY };
@@ -59,9 +53,10 @@ export default function SwipeDeck({
 
   const handlePointerMove = (e) => {
     if (!isDragging || !startPointRef.current) return;
-    const dx = e.clientX - startPointRef.current.x;
-    const dy = e.clientY - startPointRef.current.y;
-    setDragOffset({ x: dx, y: dy });
+    setDragOffset({
+      x: e.clientX - startPointRef.current.x,
+      y: e.clientY - startPointRef.current.y,
+    });
   };
 
   const handlePointerEnd = () => {
@@ -82,22 +77,28 @@ export default function SwipeDeck({
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-200 p-12 shadow-xl shadow-slate-900/5 flex flex-col items-center justify-center min-h-[420px] w-full">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
-        <p className="text-sm font-medium text-slate-500">กำลังคำนวณคะแนนจับคู่...</p>
+      <div className="w-full max-w-[480px] mx-auto bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg p-12 flex flex-col items-center justify-center gap-3 min-h-[380px]">
+        <Loader2 className="w-6 h-6 text-[#111111] dark:text-neutral-100 animate-spin" />
+        <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+          กำลังคำนวณและจัดเรียงรายการที่ตรงกับคุณ...
+        </p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-3xl border border-rose-200 p-8 text-center shadow-lg w-full">
-        <p className="text-sm font-semibold text-rose-600 mb-3">{error}</p>
+      <div className="w-full max-w-[480px] mx-auto bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg p-8 text-center">
+        <p className="text-sm font-semibold text-[#111111] dark:text-white mb-1">
+          ไม่สามารถโหลดข้อมูลได้
+        </p>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-5">{error}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="px-5 py-2.5 rounded-full bg-slate-900 text-white text-xs font-bold cursor-pointer"
+          className="px-4 py-2 rounded-md bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-[#111111] text-xs font-medium inline-flex items-center gap-2 cursor-pointer"
         >
+          <RefreshCw className="w-3.5 h-3.5" />
           ลองใหม่อีกครั้ง
         </button>
       </div>
@@ -106,51 +107,83 @@ export default function SwipeDeck({
 
   if (!currentCard) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 text-center shadow-xl shadow-slate-900/5 min-h-[380px] flex flex-col items-center justify-center w-full">
-        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-8 h-8" />
+      <div className="w-full max-w-[480px] mx-auto bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg p-10 text-center">
+        <div className="w-10 h-10 rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-5 h-5" />
         </div>
-        <h3 className="text-lg font-extrabold text-slate-900">ปัดการ์ดครบทั้งหมดแล้ว!</h3>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1.5 max-w-xs">
-          คุณดูการ์ดทั้งหมดในฟีดนี้เรียบร้อยแล้ว สามารถกดรีเซ็ตเพื่อทดสอบปัดใหม่ได้
+        <h3 className="text-base font-semibold text-[#111111] dark:text-white mb-1.5">
+          ดูรายการครบทั้งหมดแล้ว
+        </h3>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-6 leading-relaxed">
+          คุณได้พิจารณาการ์ดทั้งหมดในคิวแล้ว สามารถรีเซ็ตเพื่อดูรายการใหม่อีกครั้ง หรือย้อนกลับรายการล่าสุดได้
         </p>
-        <button
-          type="button"
-          onClick={onReset}
-          className="mt-6 px-6 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-2 shadow-lg transition cursor-pointer"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>รีเซ็ตการ์ดทั้งหมด (Reset Feed)</span>
-        </button>
+        <div className="flex items-center justify-center gap-2.5 flex-wrap">
+          {canUndo && onUndo && (
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={isActing}
+              className="px-4 py-2 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] hover:border-[#111111] dark:hover:border-neutral-500 text-[#111111] dark:text-neutral-100 text-xs font-medium inline-flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              ย้อนกลับล่าสุด (Undo)
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={isActing}
+            className="px-4 py-2 rounded-md bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-[#111111] text-xs font-medium inline-flex items-center gap-2 cursor-pointer disabled:opacity-60"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            รีเซ็ตคิวและดูใหม่
+          </button>
+        </div>
       </div>
     );
   }
 
   const activeTransform = flyOut
     ? `translate3d(${flyOut.x}px, ${flyOut.y}px, 0) rotate(${flyOut.rotate}deg)`
-    : `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.05}deg)`;
+    : `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.035}deg)`;
 
   return (
-    <div className="w-full">
-      {/* Stacked Cards Container */}
-      <div className="relative w-full">
-        {/* Next Card Preview (Behind) */}
+    <div className="w-full max-w-[480px] mx-auto flex flex-col items-center">
+      <div className="w-full flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400 mb-2.5 px-0.5">
+        <span>ลากการ์ดหรือกดปุ่มด้านล่าง</span>
+        <div className="flex items-center gap-3">
+          {canUndo && onUndo && (
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={isActing || Boolean(flyOut)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 hover:text-[#111111] dark:hover:text-white cursor-pointer disabled:opacity-40"
+              title="ย้อนกลับการปัดล่าสุด (Z)"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>ย้อนกลับ</span>
+            </button>
+          )}
+          <span className="font-mono-num">เหลือในคิว {cards.length} รายการ</span>
+        </div>
+      </div>
+
+      <div className="relative w-full min-h-[410px]">
         {nextCard && (
           <div
-            aria-hidden="true"
-            className="absolute inset-0 translate-y-3 scale-[0.96] opacity-60 pointer-events-none transition-transform duration-300"
+            className="absolute inset-x-0 top-0 transition-transform duration-200"
+            style={{
+              transform: 'scale(0.97) translateY(10px)',
+              opacity: 0.55,
+              zIndex: 1,
+            }}
           >
-            <JobCard
-              card={nextCard}
-              matchedTagIds={matchedTagIds}
-              isTop={false}
-              stackIndex={1}
-            />
+            <JobCard card={nextCard} matchedTagIds={matchedTagIds} isTop={false} stackIndex={1} />
           </div>
         )}
 
-        {/* Top Draggable Card */}
         <div
+          key={currentCard.id}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerEnd}
@@ -160,10 +193,11 @@ export default function SwipeDeck({
             opacity: flyOut ? 0 : 1,
             transition: isDragging
               ? 'none'
-              : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease',
-            touchAction: 'pan-y',
+              : 'transform 240ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease',
+            zIndex: 10,
+            touchAction: 'none',
           }}
-          className={`relative z-10 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className="relative cursor-grab active:cursor-grabbing"
         >
           <JobCard
             card={currentCard}
@@ -175,45 +209,41 @@ export default function SwipeDeck({
         </div>
       </div>
 
-      {/* Bottom Action Controls */}
-      <div className="mt-6 flex items-center justify-center gap-5">
+      {/* Editorial Action Bar */}
+      <div className="w-full grid grid-cols-3 gap-2.5 mt-5">
         <button
           type="button"
           disabled={isActing || Boolean(flyOut)}
           onClick={() => triggerSwipeWithAnimation('skip')}
-          className="w-14 h-14 rounded-full bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-500 hover:text-rose-600 flex items-center justify-center shadow-md transition active:scale-90 cursor-pointer disabled:opacity-50"
-          title="ปัดซ้าย: ข้าม (Pass) [←]"
-          aria-label="Pass"
+          className="py-2.5 px-3 rounded-md bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 hover:border-red-300 dark:hover:border-red-800 hover:bg-red-50/40 dark:hover:bg-red-950/30 text-neutral-700 dark:text-neutral-200 hover:text-red-700 dark:hover:text-red-400 text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+          title="ข้าม (Pass)"
         >
-          <X className="w-6 h-6" />
+          <X className="w-4 h-4" />
+          <span>ข้าม</span>
         </button>
 
         <button
           type="button"
           disabled={isActing || Boolean(flyOut)}
           onClick={() => triggerSwipeWithAnimation('save')}
-          className="w-12 h-12 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-600 flex items-center justify-center shadow-md transition active:scale-90 cursor-pointer disabled:opacity-50"
-          title="ปัดขึ้น: บันทึกไว้ (Save) [↑]"
-          aria-label="Save"
+          className="py-2.5 px-3 rounded-md bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 hover:border-amber-300 dark:hover:border-amber-800 hover:bg-amber-50/40 dark:hover:bg-amber-950/30 text-neutral-700 dark:text-neutral-200 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+          title="บันทึกไว้ดูภายหลัง (Save)"
         >
-          <Bookmark className="w-5 h-5" />
+          <Bookmark className="w-4 h-4" />
+          <span>บันทึก</span>
         </button>
 
         <button
           type="button"
           disabled={isActing || Boolean(flyOut)}
           onClick={() => triggerSwipeWithAnimation('express_interest')}
-          className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#2563EB] via-[#4F46E5] to-[#EC4899] text-white flex items-center justify-center shadow-xl shadow-blue-600/25 hover:scale-105 transition active:scale-90 cursor-pointer disabled:opacity-50"
-          title="ปัดขวา: สนใจ / จับคู่ (Like) [→]"
-          aria-label="Like"
+          className="py-2.5 px-3 rounded-md bg-[#111111] dark:bg-white hover:bg-emerald-700 dark:hover:bg-emerald-500 text-white dark:text-[#111111] dark:hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+          title="สนใจ (Like)"
         >
-          <Heart className="w-7 h-7 fill-white" />
+          <Heart className="w-4 h-4" />
+          <span>สนใจ</span>
         </button>
       </div>
-
-      <p className="text-center text-[11px] text-slate-400 mt-3">
-        ลากการ์ดซ้าย/ขวา หรือใช้คีย์ลัด: ← ข้าม • ↑ บันทึก • → สนใจ
-      </p>
     </div>
   );
 }

@@ -51,12 +51,21 @@ export const authApi = {
 };
 
 export const matchingApi = {
-  getFeed: (role, id) =>
-    api.get('/feed', { params: { role, id } }).then((res) => res.data),
+  getFeed: (role, id, filters = {}) => {
+    const cleanParams = { role, id };
+    Object.entries(filters || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        cleanParams[k] = v;
+      }
+    });
+    return api.get('/feed', { params: cleanParams }).then((res) => res.data);
+  },
   resetFeed: (role, id) =>
     api.post('/feed/reset', { role, id }).then((res) => res.data),
   createInteraction: (payload) =>
     api.post('/interactions', payload).then((res) => res.data),
+  undoLastInteraction: (role, id) =>
+    api.post('/interactions/undo', { role, id }).then((res) => res.data),
   getInteractions: (params) =>
     api.get('/interactions', { params }).then((res) => res.data),
   deleteInteraction: (params) =>
@@ -94,6 +103,23 @@ export const adminApi = {
 export const messageApi = {
   getMessages: (connectionId) =>
     api.get(`/messages/${encodeURIComponent(connectionId)}`).then((res) => res.data),
+};
+
+export const settingsApi = {
+  getAccountSettings: () => api.get('/settings/account').then((res) => res.data),
+  updateNotifications: (payload) =>
+    api.put('/settings/notifications', payload).then((res) => res.data),
+  updateAppearance: (payload) =>
+    api.put('/settings/appearance', payload).then((res) => res.data),
+  changePassword: (payload) =>
+    api.post('/settings/security/password', payload).then((res) => res.data),
+  updateTwoFactor: (payload) =>
+    api.put('/settings/security/2fa', payload).then((res) => res.data),
+  getDevices: () => api.get('/settings/security/devices').then((res) => res.data),
+  revokeDevice: (deviceId) =>
+    api.delete(`/settings/security/devices/${encodeURIComponent(deviceId)}`).then((res) => res.data),
+  revokeOtherDevices: () =>
+    api.delete('/settings/security/devices').then((res) => res.data),
 };
 
 export default api;

@@ -126,11 +126,12 @@ class DatabaseStore {
     this.interactions = JSON.parse(JSON.stringify(initialInteractions));
     this.users = JSON.parse(JSON.stringify(initialUsers));
     this.sessions = new Map();
+    this.userDevices = new Map();
     this.connections = new Map();
     this.messages = [];
     this.nextInteractionId = this.interactions.length + 1;
     this.nextTagId = Math.max(...this.tags.map(t => t.tag_id)) + 1;
-    this.nextJobIndex = 105;
+    this.nextJobIndex = 107;
   }
 
   /**
@@ -320,7 +321,8 @@ class DatabaseStore {
    */
   saveCandidateProfile(candidateId, data = {}) {
     const editable = ['full_name', 'email', 'phone', 'avatar', 'title', 'experience_years',
-      'location', 'expected_salary', 'work_style', 'bio'];
+      'location', 'expected_salary', 'work_style', 'bio',
+      'portfolio_url', 'github_url', 'linkedin_url', 'resume_filename', 'resume_data', 'online_resume'];
     let profile = candidateId ? this.getCandidateById(candidateId) : null;
     const created = !profile;
 
@@ -336,13 +338,23 @@ class DatabaseStore {
         location: data.location || 'Bangkok, Thailand',
         expected_salary: Number(data.expected_salary) || 0,
         work_style: data.work_style || 'hybrid',
-        bio: data.bio || ''
+        bio: data.bio || '',
+        portfolio_url: data.portfolio_url || '',
+        github_url: data.github_url || '',
+        linkedin_url: data.linkedin_url || '',
+        resume_filename: data.resume_filename || '',
+        resume_data: data.resume_data || '',
+        online_resume: data.online_resume || ''
       };
       this.candidateProfiles.push(profile);
     } else {
       editable.forEach(key => {
         if (data[key] === undefined || data[key] === null) return;
-        profile[key] = ['experience_years', 'expected_salary'].includes(key) ? Number(data[key]) || 0 : data[key];
+        if (key === 'online_resume' && typeof data[key] === 'object') {
+          profile[key] = JSON.stringify(data[key]);
+        } else {
+          profile[key] = ['experience_years', 'expected_salary'].includes(key) ? Number(data[key]) || 0 : data[key];
+        }
       });
     }
 
@@ -451,7 +463,11 @@ class DatabaseStore {
       min_salary: Number(jobData.min_salary || 50000),
       max_salary: Number(jobData.max_salary || 80000),
       location: jobData.location || 'Bangkok',
+      latitude: jobData.latitude !== undefined ? Number(jobData.latitude) : 13.7563,
+      longitude: jobData.longitude !== undefined ? Number(jobData.longitude) : 100.5018,
       work_style: jobData.work_style || 'hybrid',
+      employment_type: jobData.employment_type || 'full-time',
+      application_deadline: jobData.application_deadline || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
       description: jobData.description || 'Join our tech forward company.',
       contact_email: jobData.contact_email || 'hr@company.com',
       contact_phone: jobData.contact_phone || '+66 2 123 4567',

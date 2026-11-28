@@ -42,7 +42,39 @@ const CandidateProfile = sequelize.define('CandidateProfile', {
     type: DataTypes.STRING(32),
     defaultValue: 'hybrid'
   },
+  latitude: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  longitude: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
   bio: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  portfolio_url: {
+    type: DataTypes.STRING(512),
+    allowNull: true
+  },
+  github_url: {
+    type: DataTypes.STRING(512),
+    allowNull: true
+  },
+  linkedin_url: {
+    type: DataTypes.STRING(512),
+    allowNull: true
+  },
+  resume_filename: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  resume_data: {
+    type: DataTypes.TEXT('long'),
+    allowNull: true
+  },
+  online_resume: {
     type: DataTypes.TEXT,
     allowNull: true
   }

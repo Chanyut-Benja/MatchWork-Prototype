@@ -3,8 +3,84 @@
  */
 const db = require('../database/db');
 const { getAuthenticatedUser } = require('../middlewares/authMiddleware');
-const { calculateMatchingScore } = require('../services/matchingService');
+const {
+  calculateMatchingScore,
+  calculateDistanceKm,
+  getDaysUntilDeadline
+} = require('../services/matchingService');
 const { processMatchInteraction, simulateMutualMatch } = require('../services/interactionService');
+
+function normalizeWorkStyle(val) {
+  return String(val || '').toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function parseOptionalNumber(val) {
+  if (val === undefined || val === null || val === '') return null;
+  const num = Number(val);
+  return Number.isFinite(num) ? num : null;
+}
+
+function parseCsvParam(val) {
+  if (!val || typeof val !== 'string') return [];
+  return val
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function parseFeedFilters(query = {}) {
+  return {
+    minSalary: parseOptionalNumber(query.min_salary),
+    maxSalary: parseOptionalNumber(query.max_salary),
+    workStyles: parseCsvParam(query.work_style).map(normalizeWorkStyle),
+    location: typeof query.location === 'string' ? query.location.trim().toLowerCase() : '',
+    maxDistanceKm: parseOptionalNumber(query.max_distance_km),
+    minExp: parseOptionalNumber(query.min_exp),
+    maxExp: parseOptionalNumber(query.max_exp),
+    employmentTypes: parseCsvParam(query.employment_type)
+  };
+}
+
+function passesFeedFilters({
+  filters,
+  itemMinSalary,
+  itemMaxSalary,
+  itemWorkStyle,
+  itemLocation,
+  itemDistanceKm,
+  itemExp,
+  itemEmploymentType
+}) {
+  if (filters.minSalary !== null && itemMaxSalary !== null && itemMaxSalary < filters.minSalary) {
+    return false;
+  }
+  if (filters.maxSalary !== null && itemMinSalary !== null && itemMinSalary > filters.maxSalary) {
+    return false;
+  }
+  if (filters.workStyles.length > 0 && !filters.workStyles.includes(normalizeWorkStyle(itemWorkStyle))) {
+    return false;
+  }
+  if (filters.location && !String(itemLocation || '').toLowerCase().includes(filters.location)) {
+    return false;
+  }
+  if (filters.maxDistanceKm !== null && itemDistanceKm !== null && itemDistanceKm > filters.maxDistanceKm) {
+    return false;
+  }
+  if (filters.minExp !== null && itemExp < filters.minExp) {
+    return false;
+  }
+  if (filters.maxExp !== null && itemExp > filters.maxExp) {
+    return false;
+  }
+  if (
+    filters.employmentTypes.length > 0 &&
+    itemEmploymentType &&
+    !filters.employmentTypes.includes(String(itemEmploymentType).toLowerCase())
+  ) {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Helper to parse composite IDs like `cand_1_job_101` into { candidateId, jobId }
@@ -39,6 +115,7 @@ function parseCompositeIds(rawId, candidateId, jobId) {
 function getFeed(req, res) {
   const role = req.query.role || 'candidate';
   const id = req.query.id;
+  const filters = parseFeedFilters(req.query);
 
   if (role === 'candidate') {
     const candidateId = id || 'cand_1';
@@ -50,20 +127,47 @@ function getFeed(req, res) {
     const candidateTags = db.getCandidateTags(candidateId);
     const jobs = db.getAllJobs();
 
-    // Filter out jobs that candidate already SKIPPED so they do not reappear in Feed
+    // Filter out jobs that candidate already SKIPPED and apply advanced discovery filters
     const availableJobs = jobs.filter(job => {
       const existingInteraction = db.findInteraction(candidateId, job.job_id, 'candidate');
-      return !existingInteraction || existingInteraction.action !== 'skip';
+      if (existingInteraction && existingInteraction.action === 'skip') return false;
+
+      const distanceKm = calculateDistanceKm(
+        candidate.latitude,
+        candidate.longitude,
+        job.latitude,
+        job.longitude
+      );
+
+      return passesFeedFilters({
+        filters,
+        itemMinSalary: job.min_salary ?? 0,
+        itemMaxSalary: job.max_salary ?? 0,
+        itemWorkStyle: job.work_style,
+        itemLocation: job.location,
+        itemDistanceKm: distanceKm,
+        itemExp: job.experience_years_requirement ?? 0,
+        itemEmploymentType: job.employment_type || 'full-time'
+      });
     });
 
     const feedItems = availableJobs.map(job => {
       const jobTags = db.getJobTags(job.job_id);
-      const matchResult = calculateMatchingScore(candidateTags, jobTags, {
+      const matchContext = {
         candidate_work_style: candidate.work_style,
         job_work_style: job.work_style,
         candidate_exp: candidate.experience_years,
         job_exp_req: job.experience_years_requirement
-      });
+      };
+      const matchResult = calculateMatchingScore(candidateTags, jobTags, matchContext);
+      const distanceKm = calculateDistanceKm(
+        candidate.latitude,
+        candidate.longitude,
+        job.latitude,
+        job.longitude
+      );
+      const daysUntilDeadline = getDaysUntilDeadline(job.application_deadline);
+      const isClosingSoon = daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 5;
 
       const existingInteraction = db.findInteraction(candidateId, job.job_id, 'candidate');
       const isMatched = existingInteraction ? existingInteraction.is_matched : false;
@@ -76,9 +180,16 @@ function getFeed(req, res) {
         company_name: job.company_name,
         company_logo: job.company_logo,
         experience_requirement: job.experience_years_requirement,
+        min_salary: job.min_salary,
+        max_salary: job.max_salary,
         salary_range: `฿${job.min_salary.toLocaleString()} - ฿${job.max_salary.toLocaleString()}`,
         location: job.location,
+        distance_km: distanceKm,
         work_style: job.work_style,
+        employment_type: job.employment_type || 'full-time',
+        application_deadline: job.application_deadline || null,
+        days_until_deadline: daysUntilDeadline,
+        is_closing_soon: isClosingSoon,
         description: job.description,
         tags: jobTags,
         compatibility_score: matchResult.score,
@@ -112,20 +223,45 @@ function getFeed(req, res) {
     const jobTags = db.getJobTags(jobId);
     const candidates = db.getAllCandidates();
 
-    // Filter out candidates that recruiter already SKIPPED so they do not reappear in Feed
+    // Filter out candidates that recruiter already SKIPPED and apply discovery filters
     const availableCandidates = candidates.filter(cand => {
       const existingInteraction = db.findInteraction(cand.candidate_id, jobId, 'recruiter');
-      return !existingInteraction || existingInteraction.action !== 'skip';
+      if (existingInteraction && existingInteraction.action === 'skip') return false;
+
+      const distanceKm = calculateDistanceKm(
+        job.latitude,
+        job.longitude,
+        cand.latitude,
+        cand.longitude
+      );
+
+      return passesFeedFilters({
+        filters,
+        itemMinSalary: cand.expected_salary ?? 0,
+        itemMaxSalary: cand.expected_salary ?? 0,
+        itemWorkStyle: cand.work_style,
+        itemLocation: cand.location,
+        itemDistanceKm: distanceKm,
+        itemExp: cand.experience_years ?? 0,
+        itemEmploymentType: null
+      });
     });
 
     const feedItems = availableCandidates.map(cand => {
       const candTags = db.getCandidateTags(cand.candidate_id);
-      const matchResult = calculateMatchingScore(candTags, jobTags, {
+      const matchContext = {
         candidate_work_style: cand.work_style,
         job_work_style: job.work_style,
         candidate_exp: cand.experience_years,
         job_exp_req: job.experience_years_requirement
-      });
+      };
+      const matchResult = calculateMatchingScore(candTags, jobTags, matchContext);
+      const distanceKm = calculateDistanceKm(
+        job.latitude,
+        job.longitude,
+        cand.latitude,
+        cand.longitude
+      );
 
       const existingInteraction = db.findInteraction(cand.candidate_id, jobId, 'recruiter');
       const isMatched = existingInteraction ? existingInteraction.is_matched : false;
@@ -144,6 +280,7 @@ function getFeed(req, res) {
         raw_expected_salary: cand.expected_salary,
         expected_salary: `฿${cand.expected_salary.toLocaleString()} / mo`,
         location: cand.location,
+        distance_km: distanceKm,
         work_style: cand.work_style,
         bio: cand.bio,
         tags: candTags,
@@ -231,6 +368,14 @@ function getInteractions(req, res) {
   let data = db.getInteractions({ role, id });
   if (req.query.action) data = data.filter(i => i.action === req.query.action);
 
+  // Sort newest first so history & undo order are deterministic
+  data = [...data].sort((a, b) => {
+    const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+    const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+    if (timeB !== timeA) return timeB - timeA;
+    return (b.interaction_id || 0) - (a.interaction_id || 0);
+  });
+
   const enrichedData = data.map(i => {
     const candidate = db.getCandidateById(i.candidate_id);
     const job = db.getJobById(i.job_id);
@@ -239,14 +384,18 @@ function getInteractions(req, res) {
 
     let matchPercentage = 85;
     try {
-      const matchData = calculateMatchingScore(candTags, jobTags, {
+      const matchContext = {
         candidate_work_style: candidate?.work_style,
         job_work_style: job?.work_style,
         candidate_exp: candidate?.experience_years,
         job_exp_req: job?.experience_years_requirement
-      });
+      };
+      const matchData = calculateMatchingScore(candTags, jobTags, matchContext);
       matchPercentage = matchData.score;
     } catch (e) {}
+
+    const daysUntilDeadline = getDaysUntilDeadline(job?.application_deadline);
+    const isClosingSoon = daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 5;
 
     const candExpectedSalary = candidate?.expected_salary
       ? `฿${Number(candidate.expected_salary).toLocaleString()} / เดือน`
@@ -270,8 +419,15 @@ function getInteractions(req, res) {
       company_logo: (job && job.company_logo) || i.job_data?.company_logo || '',
       contact_email: (job && job.contact_email) || i.job_data?.contact_email || '',
       contact_phone: (job && job.contact_phone) || i.job_data?.contact_phone || '',
+      min_salary: job?.min_salary || null,
+      max_salary: job?.max_salary || null,
       salary_range: jobSalary,
       location: job?.location || 'Bangkok',
+      work_style: job?.work_style || 'hybrid',
+      employment_type: job?.employment_type || 'full-time',
+      application_deadline: job?.application_deadline || null,
+      days_until_deadline: daysUntilDeadline,
+      is_closing_soon: isClosingSoon,
       job_tags: jobTags.map(t => t.tag_name),
       match_score: matchPercentage
     };
@@ -281,7 +437,51 @@ function getInteractions(req, res) {
     success: true,
     count: enrichedData.length,
     matched_count: enrichedData.filter(i => i.is_matched).length,
+    closing_soon_count: enrichedData.filter(i => i.action === 'save' && i.is_closing_soon).length,
     data: enrichedData
+  });
+}
+
+/**
+ * POST /api/v1/interactions/undo
+ * Undoes the most recent swipe interaction for the active persona
+ */
+function undoLastInteraction(req, res) {
+  const authUser = getAuthenticatedUser(req);
+  const userRole = ((authUser && authUser.role) || '').toLowerCase();
+  let role = req.body?.role || req.query.role;
+  let id = req.body?.id || req.query.id;
+
+  if (!role && authUser) {
+    if (userRole === 'candidate') { role = 'candidate'; id = id || authUser.candidate_id; }
+    if (userRole === 'recruiter') { role = 'recruiter'; id = id || authUser.job_id; }
+  }
+
+  role = role || 'candidate';
+  id = id || (role === 'candidate' ? 'cand_1' : 'job_101');
+
+  const list = db.getInteractions({ role, id });
+  if (!list.length) {
+    return res.status(404).json({
+      success: false,
+      message: 'ไม่มีประวัติการปัดล่าสุดให้ย้อนกลับ'
+    });
+  }
+
+  const sorted = [...list].sort((a, b) => {
+    const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+    const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+    if (timeB !== timeA) return timeB - timeA;
+    return (b.interaction_id || 0) - (a.interaction_id || 0);
+  });
+
+  const latest = sorted[0];
+  const removed = db.removeInteraction(latest.candidate_id, latest.job_id, latest.initiator_role);
+
+  return res.json({
+    success: removed,
+    message: removed ? 'ย้อนกลับการปัดล่าสุดเรียบร้อยแล้ว' : 'ไม่สามารถย้อนกลับได้',
+    undone: latest
   });
 }
 
@@ -651,6 +851,7 @@ module.exports = {
   getFeed,
   resetFeed,
   createInteraction,
+  undoLastInteraction,
   getInteractions,
   deleteInteraction,
   getMatches,

@@ -1,5 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { ThemeProvider } from './context/ThemeContext';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 
@@ -8,9 +10,11 @@ function AppShell() {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-[#2563EB] animate-spin" />
-        <p className="text-xs font-medium text-slate-500">กำลังตรวจสอบเซสชัน...</p>
+      <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0B0C] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-6 h-6 text-[#111111] dark:text-neutral-100 animate-spin" />
+        <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+          กำลังตรวจสอบเซสชัน...
+        </p>
       </div>
     );
   }
@@ -29,8 +33,12 @@ function AppShell() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppShell />
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

@@ -1,35 +1,35 @@
 import { useState } from 'react';
 import {
   AlertCircle,
-  Briefcase,
+  ArrowRight,
   Building2,
-  CheckCircle2,
   Eye,
   EyeOff,
-  Flame,
-  Heart,
   Loader2,
-  Lock,
-  Mail,
-  MapPin,
-  Sparkles,
+  Terminal,
   User,
-  UserPlus,
-  X,
 } from 'lucide-react';
+import BrandMark from '../components/ui/BrandMark';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import QuickAccountSwitcher from '../components/QuickAccountSwitcher';
 import { useAuth } from '../context/AuthContext';
 
+const SAMPLE_WEIGHTS = [
+  { tag: 'TypeScript / React', weight: '0.90', matched: true },
+  { tag: 'Node.js & PostgreSQL', weight: '0.85', matched: true },
+  { tag: 'System Architecture', weight: '0.70', matched: true },
+  { tag: 'Kubernetes / Docker', weight: '0.60', matched: false },
+];
+
 export default function AuthPage() {
   const { login, register, isSubmitting, authError, clearError } = useAuth();
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
+  const [showDemoPanel, setShowDemoPanel] = useState(false);
 
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('kawin.dev@example.com');
-  const [loginPassword, setLoginPassword] = useState('password123');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
-  // Register form state
   const [regRole, setRegRole] = useState('candidate');
   const [regName, setRegName] = useState('');
   const [regTitle, setRegTitle] = useState('');
@@ -63,373 +63,382 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#F8FAFC] flex flex-col justify-between px-4 sm:px-8 py-6">
-      {/* Ambient Background Blobs */}
-      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute -top-40 -left-32 w-[30rem] h-[30rem] rounded-full bg-blue-500/[0.08] blur-3xl" />
-        <div className="absolute top-1/3 -right-32 w-[28rem] h-[28rem] rounded-full bg-rose-500/[0.07] blur-3xl" />
-        <div className="absolute -bottom-40 left-1/3 w-[28rem] h-[28rem] rounded-full bg-indigo-500/[0.07] blur-3xl" />
-      </div>
-
-      {/* Top Brand Header */}
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#2563EB] via-[#4F46E5] to-[#EC4899] flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <Flame className="w-5 h-5 text-white fill-white" />
-          </div>
-          <div>
-            <span className="font-extrabold text-xl tracking-tight text-slate-900">
-              MATCH<span className="text-[#2563EB]">WORK</span>
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0B0C] text-[#111111] dark:text-neutral-100 flex flex-col justify-between">
+      {/* Top Bar */}
+      <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416]">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-14 flex items-center justify-between">
+          <BrandMark />
+          <div className="flex items-center gap-2.5">
+            <span className="hidden sm:inline text-xs text-neutral-500 dark:text-neutral-400">
+              แพลตฟอร์มจับคู่งานสาย Tech ด้วยค่าน้ำหนักทักษะจริง
             </span>
-            <p className="text-[11px] text-slate-500 font-medium -mt-0.5">
-              Smart Tech Job Matching
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowDemoPanel((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-neutral-200 dark:border-neutral-800 rounded-md bg-white dark:bg-[#141416] hover:bg-neutral-50 dark:hover:bg-neutral-900 text-neutral-700 dark:text-neutral-200 transition-colors cursor-pointer"
+            >
+              <Terminal className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
+              โหมดทดสอบ (Demo)
+            </button>
+            <ThemeToggle />
           </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/80 shadow-sm text-xs font-medium text-slate-600">
-          <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" />
-          <span>Tag-Weighted Compatibility Engine</span>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center py-8">
-        {/* Left Column: Tinder-inspired Hero & Preview Card */}
-        <section className="lg:col-span-6 space-y-6 text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#2563EB] text-xs font-semibold shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Tinder-Inspired Career Matching</span>
+      {/* Main Swiss Grid */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-5 sm:px-8 py-10 lg:py-14 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+        {/* Left Editorial Column (7 cols) */}
+        <section className="lg:col-span-7 space-y-8 pt-2">
+          <div className="space-y-4">
+            <p className="font-mono-num text-[11px] uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400 font-medium">
+              Tag-Weighted Matching Engine
+            </p>
+            <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-semibold tracking-tight leading-[1.15] text-[#111111] dark:text-white">
+              คัดกรองงานและผู้สมัครด้วยค่าน้ำหนักทักษะ ไม่ใช่การเดาจากคีย์เวิร์ด
+            </h1>
+            <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-xl">
+              MatchWork คำนวณความเข้ากันได้จากน้ำหนักความสำคัญของแต่ละทักษะ (0.00–1.00)
+              รูปแบบการทำงาน และช่วงเงินเดือน เพื่อให้ทั้งผู้สมัครและทีม HR เห็นเหตุผลของคะแนนก่อนกดเชื่อมต่อและเริ่มแชททันที
+            </p>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.18]">
-            It starts with a{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#EC4899]">
-              match.
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
-            งานที่ใช่ เริ่มต้นที่การปัด — จับคู่ผู้สมัครสาย Tech กับบริษัทชั้นนำด้วยระบบคำนวณค่าน้ำหนักสกิลที่แม่นยำ
-          </p>
-
-          {/* Decorative Tinder-style Match Card Preview */}
-          <div className="hidden md:block max-w-md mx-auto lg:mx-0 pt-2">
-            <div className="animate-float-slow bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xl shadow-slate-900/10 text-left relative">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-base shadow-md">
-                    TI
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-sm">Senior Full-Stack Engineer</h3>
-                    <p className="text-xs text-slate-500">Tech Innovator Co., Ltd.</p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  94% Match
+          {/* Swiss Spec Table */}
+          <div className="bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-neutral-50/70 dark:bg-neutral-900/50">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                <span className="text-xs font-medium text-neutral-800 dark:text-neutral-200">
+                  ตัวอย่างการคำนวณ Compatibility Score
                 </span>
               </div>
+              <span className="font-mono-num text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                80% MATCH
+              </span>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-2 mt-3.5 text-[11px] text-slate-600">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 font-medium">
-                  <MapPin className="w-3 h-3 text-blue-600" /> Bangkok • Hybrid
-                </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 font-medium">
-                  ฿75,000 - ฿110,000
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 mt-3.5">
-                {['React (0.95)', 'Node.js (0.90)', 'TypeScript (0.85)', 'PostgreSQL (0.80)'].map(
-                  (tag) => (
+            <div className="divide-y divide-neutral-100 dark:divide-neutral-800/80">
+              {SAMPLE_WEIGHTS.map((row) => (
+                <div
+                  key={row.tag}
+                  className="px-4 py-2.5 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2.5">
                     <span
-                      key={tag}
-                      className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-semibold"
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        row.matched ? 'bg-emerald-600' : 'bg-neutral-300 dark:bg-neutral-700'
+                      }`}
+                    />
+                    <span
+                      className={
+                        row.matched
+                          ? 'text-[#111111] dark:text-neutral-100 font-medium'
+                          : 'text-neutral-400 dark:text-neutral-500'
+                      }
                     >
-                      {tag}
+                      {row.tag}
                     </span>
-                  )
-                )}
-              </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-mono-num text-neutral-500 dark:text-neutral-400">
+                      w = {row.weight}
+                    </span>
+                    <span
+                      className={`font-mono-num text-[11px] px-2 py-0.5 rounded border ${
+                        row.matched
+                          ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400'
+                          : 'border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-500'
+                      }`}
+                    >
+                      {row.matched ? 'ตรงกัน' : 'ยังไม่ตรง'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-              {/* Mini Swipe Action Bar */}
-              <div className="flex items-center justify-center gap-4 mt-5 pt-4 border-t border-slate-100">
-                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
-                  <X className="w-5 h-5" />
-                </div>
-                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#EC4899] text-white flex items-center justify-center shadow-lg shadow-pink-500/25">
-                  <Heart className="w-5 h-5 fill-white" />
-                </div>
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
+            <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/40 dark:bg-neutral-900/30 grid grid-cols-3 gap-4 text-xs">
+              <div>
+                <p className="text-neutral-400 text-[11px]">1. ปัดการ์ด</p>
+                <p className="font-medium text-neutral-800 dark:text-neutral-200 mt-0.5">
+                  สนใจ / ข้าม / บันทึก
+                </p>
+              </div>
+              <div>
+                <p className="text-neutral-400 text-[11px]">2. Mutual Match</p>
+                <p className="font-medium text-neutral-800 dark:text-neutral-200 mt-0.5">
+                  ใจตรงกันทั้งสองฝั่ง
+                </p>
+              </div>
+              <div>
+                <p className="text-neutral-400 text-[11px]">3. Real-time Chat</p>
+                <p className="font-medium text-neutral-800 dark:text-neutral-200 mt-0.5">
+                  นัดสัมภาษณ์ผ่าน Socket
+                </p>
               </div>
             </div>
           </div>
+
+          {showDemoPanel && (
+            <div className="bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg p-4 animate-editorial-in">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs font-semibold text-[#111111] dark:text-neutral-100">
+                    เข้าสู่ระบบด้วยบัญชีทดสอบ
+                  </p>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    เลือกบทบาทที่ต้องการเพื่อทดลองระบบทันทีโดยไม่ต้องกรอกรหัสผ่าน
+                  </p>
+                </div>
+              </div>
+              <QuickAccountSwitcher />
+            </div>
+          )}
         </section>
 
-        {/* Right Column: Auth Card + Quick Account Switcher */}
-        <section className="lg:col-span-6 w-full max-w-lg mx-auto">
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xl shadow-slate-900/10">
-            {/* Segmented Tab Switcher */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/80 mb-6">
+        {/* Right Auth Card (5 cols) */}
+        <section className="lg:col-span-5">
+          <div className="bg-white dark:bg-[#141416] border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 sm:p-7">
+            <div className="grid grid-cols-2 border border-neutral-200 dark:border-neutral-800 rounded-md p-1 bg-neutral-50 dark:bg-neutral-900 mb-6">
               <button
                 type="button"
                 onClick={() => handleTabSwitch('login')}
-                className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
+                className={`py-2 text-xs font-medium rounded transition-colors cursor-pointer ${
                   mode === 'login'
-                    ? 'bg-white text-[#2563EB] shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#141416] text-[#111111] dark:text-white border border-neutral-200 dark:border-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-[#111111] dark:hover:text-white'
                 }`}
               >
-                เข้าสู่ระบบ (Log in)
+                เข้าสู่ระบบ
               </button>
               <button
                 type="button"
                 onClick={() => handleTabSwitch('register')}
-                className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
+                className={`py-2 text-xs font-medium rounded transition-colors cursor-pointer ${
                   mode === 'register'
-                    ? 'bg-white text-[#2563EB] shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#141416] text-[#111111] dark:text-white border border-neutral-200 dark:border-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-[#111111] dark:hover:text-white'
                 }`}
               >
-                สมัครสมาชิก (Register)
+                สมัครสมาชิก
               </button>
             </div>
 
-            {/* Error Alert */}
             {authError && (
-              <div className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-pop-in">
+              <div className="mb-4 px-3 py-2.5 border border-red-200 dark:border-red-900 bg-red-50/70 dark:bg-red-950/40 rounded-md flex items-start gap-2 text-xs text-red-700 dark:text-red-400">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{authError}</span>
               </div>
             )}
 
-            {/* LOGIN FORM */}
             {mode === 'login' ? (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    อีเมลผู้ใช้งาน (Email)
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">
+                    อีเมล
                   </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="kawin.dev@example.com"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition"
-                    />
-                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400 transition-colors"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    รหัสผ่าน (Password)
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">
+                    รหัสผ่าน
                   </label>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-11 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition"
+                      className="w-full px-3 py-2 pr-9 text-sm bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                      aria-label="Toggle password visibility"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#111111] dark:hover:text-white cursor-pointer"
+                      aria-label="แสดงหรือซ่อนรหัสผ่าน"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1.5">
-                    เดโม: รหัสผ่านเริ่มต้นคือ <code className="text-slate-600 font-semibold">password123</code>
-                  </p>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#4F46E5] hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="w-full py-2.5 px-4 bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-60 text-white dark:text-[#111111] text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>กำลังเข้าสู่ระบบ...</span>
-                    </>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span>เข้าสู่ระบบ (Log in)</span>
+                    <>
+                      <span>เข้าสู่ระบบ</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
                   )}
                 </button>
+
+                <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+                  <span>อยากลองระบบทันที?</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDemoPanel(true)}
+                    className="text-[#111111] dark:text-neutral-100 font-medium underline underline-offset-4 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer"
+                  >
+                    เปิดบัญชีทดสอบ
+                  </button>
+                </div>
               </form>
             ) : (
-              /* REGISTER FORM */
               <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    เลือกประเภทบัญชี (Account Role)
-                  </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setRegRole('candidate')}
-                      className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
-                        regRole === 'candidate'
-                          ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-500/15'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <User className="w-4 h-4 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold">Candidate</div>
-                        <div className="text-[10px] opacity-80">ผู้หางาน</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setRegRole('recruiter')}
-                      className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
-                        regRole === 'recruiter'
-                          ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-500/15'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <Building2 className="w-4 h-4 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold">Company</div>
-                        <div className="text-[10px] opacity-80">ผู้ว่าจ้าง / HR</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {regRole === 'recruiter' ? 'ชื่อบริษัท / HR' : 'ชื่อ-นามสกุล'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder={regRole === 'recruiter' ? 'เช่น Acme Tech' : 'เช่น สมชาย ใจดี'}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#2563EB] focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      ตำแหน่งงาน (Title)
-                    </label>
-                    <div className="relative">
-                      <Briefcase className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        required
-                        value={regTitle}
-                        onChange={(e) => setRegTitle(e.target.value)}
-                        placeholder="เช่น Full-Stack Dev"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-8 pr-3 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#2563EB] focus:bg-white"
-                      />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRegRole('candidate')}
+                    className={`p-2.5 rounded-md border text-left transition-colors cursor-pointer ${
+                      regRole === 'candidate'
+                        ? 'border-[#111111] dark:border-neutral-300 bg-neutral-50 dark:bg-neutral-900'
+                        : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-[#111111] dark:text-neutral-100">
+                      <User className="w-3.5 h-3.5" />
+                      ผู้หางาน (Candidate)
                     </div>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegRole('recruiter')}
+                    className={`p-2.5 rounded-md border text-left transition-colors cursor-pointer ${
+                      regRole === 'recruiter'
+                        ? 'border-[#111111] dark:border-neutral-300 bg-neutral-50 dark:bg-neutral-900'
+                        : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-[#111111] dark:text-neutral-100">
+                      <Building2 className="w-3.5 h-3.5" />
+                      บริษัท (Recruiter)
+                    </div>
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">อีเมล</label>
-                    <input
-                      type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#2563EB] focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">รหัสผ่าน</label>
-                    <input
-                      type="password"
-                      required
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#2563EB] focus:bg-white"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    {regRole === 'recruiter' ? 'ชื่อบริษัท / องค์กร' : 'ชื่อ-นามสกุล'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder={regRole === 'recruiter' ? 'เช่น Beam Data Labs' : 'เช่น กวินทร์ สุขสวัสดิ์'}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    {regRole === 'recruiter' ? 'ตำแหน่งงานที่เปิดรับ' : 'ตำแหน่งงานที่มองหา'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regTitle}
+                    onChange={(e) => setRegTitle(e.target.value)}
+                    placeholder="เช่น Senior Full-Stack Engineer"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                       รูปแบบการทำงาน
                     </label>
                     <select
                       value={regWorkStyle}
                       onChange={(e) => setRegWorkStyle(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#2563EB] focus:bg-white"
+                      className="w-full px-2.5 py-2 text-sm border border-neutral-200 dark:border-neutral-800 rounded-md bg-white dark:bg-[#0B0B0C] focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
                     >
                       <option value="hybrid">Hybrid</option>
                       <option value="remote">Remote</option>
-                      <option value="on-site">On-site</option>
+                      <option value="onsite">Onsite</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {regRole === 'recruiter' ? 'งบประมาณเงินเดือน (บาท)' : 'เงินเดือนที่คาดหวัง (บาท)'}
+                    <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      เงินเดือน (บาท)
                     </label>
                     <input
                       type="number"
+                      min="0"
                       value={regSalary}
                       onChange={(e) => setRegSalary(e.target.value)}
-                      placeholder="เช่น 65000"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-[#2563EB] focus:bg-white"
+                      placeholder="65000"
+                      className="w-full px-3 py-2 text-sm font-mono-num bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    อีเมล
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    รหัสผ่าน
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="อย่างน้อย 6 ตัวอักษร"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
+                  />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-lg shadow-slate-900/15 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 mt-1"
+                  className="w-full py-2.5 px-4 bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-60 text-white dark:text-[#111111] text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>กำลังสร้างบัญชี...</span>
-                    </>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>
-                      <UserPlus className="w-4 h-4" />
-                      <span>สมัครสมาชิกและเข้าใช้งานทันที</span>
-                    </>
+                    <span>สร้างบัญชีและเริ่มจับคู่</span>
                   )}
                 </button>
               </form>
             )}
-
-            {/* Quick Account Switcher at bottom of card */}
-            <div className="mt-5">
-              <QuickAccountSwitcher variant="auth" />
-            </div>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="max-w-6xl mx-auto w-full text-center pt-4">
-        <p className="text-xs text-slate-400">
-          MatchWork • React + Vite + Tailwind CSS • Powered by JWT & Tag-Weighted Matching
-        </p>
+      <footer className="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416]">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-400">
+          <span>MatchWork — Tag-Weighted Tech Talent Matching</span>
+          <span className="font-mono-num">JWT + Socket.IO Real-time</span>
+        </div>
       </footer>
     </div>
   );

@@ -10,17 +10,31 @@ const db = require('../database/db');
 async function getMessagesByConnection(req, res) {
   try {
     const { connectionId } = req.params;
-    if (!connectionId || !connectionId.trim()) {
+    const cleanId = connectionId ? connectionId.trim() : '';
+    if (!cleanId) {
       return res.status(400).json({
         success: false,
         message: 'connectionId parameter is required'
       });
     }
 
-    const messages = await db.getMessagesByConnectionId(connectionId.trim());
+    const user = req.user;
+    const isAdmin = (user?.role || '').toLowerCase() === 'admin';
+    const isParticipant =
+      (user?.candidate_id && cleanId.startsWith(`${user.candidate_id}_`)) ||
+      (user?.job_id && cleanId.endsWith(`_${user.job_id}`));
+
+    if (!isAdmin && !isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: You do not have access to this conversation'
+      });
+    }
+
+    const messages = await db.getMessagesByConnectionId(cleanId);
     return res.json({
       success: true,
-      connectionId: connectionId.trim(),
+      connectionId: cleanId,
       count: messages.length,
       data: messages
     });

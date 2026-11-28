@@ -178,6 +178,48 @@ function calculateMatchingScore(candidateTags = [], jobTags = [], context = {}) 
   };
 }
 
+/**
+ * Haversine distance in kilometers between two coordinates.
+ */
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  const toNum = (v) => (typeof v === 'number' ? v : parseFloat(v));
+  const aLat = toNum(lat1);
+  const aLon = toNum(lon1);
+  const bLat = toNum(lat2);
+  const bLon = toNum(lon2);
+  if (![aLat, aLon, bLat, bLon].every((n) => Number.isFinite(n))) return null;
+
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const sinLat = Math.sin(dLat / 2);
+  const sinLon = Math.sin(dLon / 2);
+  const a =
+    sinLat * sinLat +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * sinLon * sinLon;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
+/**
+ * Returns whole days remaining until application_deadline (YYYY-MM-DD or ISO).
+ */
+function getDaysUntilDeadline(deadlineStr) {
+  if (!deadlineStr) return null;
+  const deadline = new Date(deadlineStr);
+  if (isNaN(deadline.getTime())) return null;
+  const now = new Date();
+  const todayMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const targetMidnight = Date.UTC(
+    deadline.getUTCFullYear(),
+    deadline.getUTCMonth(),
+    deadline.getUTCDate()
+  );
+  return Math.ceil((targetMidnight - todayMidnight) / 86400000);
+}
+
 module.exports = {
-  calculateMatchingScore
+  calculateMatchingScore,
+  calculateDistanceKm,
+  getDaysUntilDeadline
 };

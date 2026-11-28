@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import {
-  CheckCircle2,
-  ExternalLink,
-  Loader2,
-  MessageCircle,
-  Send,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { ExternalLink, Loader2, MessageCircle, Send, X } from 'lucide-react';
 import { messageApi, TOKEN_STORAGE_KEY } from '../services/api';
 
 const FALLBACK_AVATAR =
@@ -16,9 +8,8 @@ const FALLBACK_AVATAR =
 
 const QUICK_REPLIES = [
   'สวัสดีครับ สนใจนัดสัมภาษณ์เบื้องต้นครับ',
-  'ขอดู Portfolio เพิ่มเติมได้ไหมครับ',
-  'สะดวกคุยรายละเอียดงานวันไหนดีครับ?',
-  'ยินดีครับ สามารถส่งลิงก์ Google Meet มาได้เลยครับ',
+  'ขอดู Portfolio หรือ GitHub เพิ่มเติมได้ไหมครับ',
+  'สะดวกคุยรายละเอียดงานช่วงเวลาไหนดีครับ?',
 ];
 
 function getSocketUrl() {
@@ -62,9 +53,7 @@ export default function ChatWindow({
   }, [match]);
 
   const partnerInfo = useMemo(() => {
-    if (!match) {
-      return { title: '', subtitle: '', avatar: FALLBACK_AVATAR };
-    }
+    if (!match) return { title: '', subtitle: '', avatar: FALLBACK_AVATAR };
     const isCandView = effectiveRole === 'candidate';
     return {
       title: isCandView ? match.job_title : match.candidate_name,
@@ -75,14 +64,12 @@ export default function ChatWindow({
     };
   }, [match, effectiveRole]);
 
-  // Auto-scroll to newest message
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen]);
 
-  // Load chat history & establish Socket.io connection when modal opens
   useEffect(() => {
     if (!isOpen || !connectionId) return undefined;
 
@@ -99,7 +86,7 @@ export default function ChatWindow({
       })
       .catch((err) => {
         if (active) {
-          setErrorMsg(err?.response?.data?.message || 'ไม่สามารถโหลดประวัติแชตได้');
+          setErrorMsg(err?.response?.data?.message || 'ไม่สามารถโหลดประวัติแชทได้');
         }
       })
       .finally(() => {
@@ -123,6 +110,13 @@ export default function ChatWindow({
       if (active) setIsConnectedSocket(false);
     };
 
+    const handleConnectError = (err) => {
+      if (active) {
+        setIsConnectedSocket(false);
+        setErrorMsg(err?.message || 'การเชื่อมต่อ Socket.IO ถูกปฏิเสธ');
+      }
+    };
+
     const handleReceiveMessage = (incoming) => {
       if (!active || !incoming) return;
       if (incoming.connectionId && incoming.connectionId !== connectionId) return;
@@ -134,12 +128,14 @@ export default function ChatWindow({
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
     socket.on('receive_message', handleReceiveMessage);
 
     return () => {
       active = false;
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
       socket.off('receive_message', handleReceiveMessage);
       socket.disconnect();
       socketRef.current = null;
@@ -157,11 +153,7 @@ export default function ChatWindow({
 
       socketRef.current.emit(
         'send_message',
-        {
-          connectionId,
-          senderId: currentUser?.id,
-          content,
-        },
+        { connectionId, content },
         (ack) => {
           setIsSending(false);
           if (ack && !ack.success) {
@@ -172,7 +164,7 @@ export default function ChatWindow({
 
       setInputText('');
     },
-    [connectionId, currentUser?.id, isSending]
+    [connectionId, isSending]
   );
 
   const handleSubmit = (e) => {
@@ -184,43 +176,34 @@ export default function ChatWindow({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg h-[85vh] max-h-[680px] flex flex-col overflow-hidden animate-pop-in"
+        className="bg-white dark:bg-[#141416] rounded-lg border border-neutral-200 dark:border-neutral-800 shadow-lg w-full max-w-lg h-[82vh] max-h-[640px] flex flex-col overflow-hidden animate-editorial-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 sm:px-5 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative shrink-0">
-              <img
-                src={partnerInfo.avatar}
-                alt={partnerInfo.title}
-                className="w-11 h-11 rounded-2xl object-cover border border-slate-200 bg-slate-100"
-              />
-              <span
-                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                  isConnectedSocket ? 'bg-emerald-500' : 'bg-amber-400'
-                }`}
-                title={isConnectedSocket ? 'Real-time Connected' : 'Connecting...'}
-              />
-            </div>
-
+            <img
+              src={partnerInfo.avatar}
+              alt={partnerInfo.title}
+              className="w-9 h-9 rounded-md object-cover border border-neutral-200 dark:border-neutral-800 shrink-0"
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold text-slate-900 truncate">
+                <h3 className="text-sm font-semibold text-[#111111] dark:text-white truncate">
                   {partnerInfo.title}
                 </h3>
-                {match.is_connected && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Connected
-                  </span>
-                )}
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    isConnectedSocket ? 'bg-emerald-600' : 'bg-neutral-300 dark:bg-neutral-700'
+                  }`}
+                  title={isConnectedSocket ? 'เชื่อมต่อ Real-time แล้ว' : 'กำลังเชื่อมต่อ'}
+                />
               </div>
-              <p className="text-[11px] font-medium text-slate-500 truncate">
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
                 {partnerInfo.subtitle}
               </p>
             </div>
@@ -232,18 +215,17 @@ export default function ChatWindow({
                 href={match.interview_link}
                 target="_blank"
                 rel="noreferrer"
-                className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-bold inline-flex items-center gap-1 transition"
-                title="เปิดลิงก์สัมภาษณ์ Google Meet"
+                className="px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 hover:border-[#111111] dark:hover:border-neutral-500 text-[11px] font-medium text-neutral-700 dark:text-neutral-200 inline-flex items-center gap-1"
               >
-                <span>Meet</span>
+                <span>Google Meet</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
-              aria-label="Close chat"
+              className="p-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-300 cursor-pointer"
+              aria-label="ปิดหน้าต่างแชท"
             >
               <X className="w-4 h-4" />
             </button>
@@ -251,22 +233,19 @@ export default function ChatWindow({
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/80">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FAFAFA] dark:bg-[#0B0B0C]">
           {isLoadingHistory ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-              <span className="text-xs font-medium">กำลังโหลดประวัติแชต...</span>
+            <div className="h-full flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-neutral-500 animate-spin" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-6">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <p className="text-xs font-bold text-slate-700">
-                เริ่มต้นบทสนทนากับ {partnerInfo.title}
+            <div className="h-full flex flex-col items-center justify-center text-center px-4">
+              <MessageCircle className="w-6 h-6 text-neutral-300 dark:text-neutral-700 mb-2" />
+              <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                เริ่มต้นบทสนทนาได้เลย
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                พิมพ์ข้อความด้านล่าง หรือกดปุ่ม Quick Reply เพื่อทักทายและนัดสัมภาษณ์ได้ทันที
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
+                เลือกข้อความด่วนด้านล่างหรือพิมพ์ข้อความเพื่อสอบถามรายละเอียดงาน
               </p>
             </div>
           ) : (
@@ -277,21 +256,16 @@ export default function ChatWindow({
                   key={msg.id}
                   className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
                 >
-                  {!isMine && msg.senderName && (
-                    <span className="text-[10px] font-semibold text-slate-500 mb-1 px-1">
-                      {msg.senderName}
-                    </span>
-                  )}
                   <div
-                    className={`max-w-[80%] px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed shadow-2xs break-words ${
+                    className={`max-w-[80%] px-3.5 py-2 rounded-lg text-xs leading-relaxed border ${
                       isMine
-                        ? 'bg-gradient-to-r from-[#2563EB] to-[#4F46E5] text-white rounded-2xl rounded-br-sm'
-                        : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-bl-sm'
+                        ? 'bg-[#111111] dark:bg-white text-white dark:text-[#111111] border-[#111111] dark:border-white'
+                        : 'bg-white dark:bg-[#141416] text-[#111111] dark:text-neutral-100 border-neutral-200 dark:border-neutral-800'
                     }`}
                   >
                     {msg.content}
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-1 px-1">
+                  <span className="font-mono-num text-[10px] text-neutral-400 mt-1 px-1">
                     {formatMessageTime(msg.createdAt)}
                   </span>
                 </div>
@@ -301,54 +275,43 @@ export default function ChatWindow({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Error Banner */}
         {errorMsg && (
-          <div className="px-4 py-2 bg-rose-50 border-t border-rose-200 text-[11px] font-semibold text-rose-700">
+          <div className="px-4 py-2 bg-red-50 dark:bg-red-950/40 border-t border-red-200 dark:border-red-900 text-[11px] text-red-700 dark:text-red-400">
             {errorMsg}
           </div>
         )}
 
-        {/* Quick Reply Suggestions */}
-        <div className="px-3.5 pt-2.5 pb-2 bg-white border-t border-slate-200/80 shrink-0">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-            <Sparkles className="w-3 h-3 text-amber-500" />
-            <span>Quick Replies</span>
-          </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            {QUICK_REPLIES.map((reply) => (
-              <button
-                key={reply}
-                type="button"
-                disabled={isSending}
-                onClick={() => sendMessage(reply)}
-                className="shrink-0 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 text-[11px] font-semibold transition active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                {reply}
-              </button>
-            ))}
-          </div>
+        <div className="px-3 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] flex gap-1.5 overflow-x-auto shrink-0">
+          {QUICK_REPLIES.map((reply) => (
+            <button
+              key={reply}
+              type="button"
+              onClick={() => sendMessage(reply)}
+              className="px-2.5 py-1 rounded border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[11px] text-neutral-700 dark:text-neutral-300 whitespace-nowrap cursor-pointer"
+            >
+              {reply}
+            </button>
+          ))}
         </div>
 
-        {/* Message Input Bar */}
         <form
           onSubmit={handleSubmit}
-          className="p-3 sm:p-3.5 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0"
+          className="p-3 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141416] flex items-center gap-2 shrink-0"
         >
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="พิมพ์ข้อความเพื่อคุยหรือนัดสัมภาษณ์..."
-            className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-100 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 transition"
+            placeholder="พิมพ์ข้อความ..."
+            className="flex-1 px-3 py-2 text-xs bg-white dark:bg-[#0B0B0C] border border-neutral-200 dark:border-neutral-800 rounded-md focus:outline-none focus:border-[#111111] dark:focus:border-neutral-400"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isSending}
-            className="p-2.5 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-[#2563EB] to-[#4F46E5] hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="ส่งข้อความ"
+            className="px-3.5 py-2 rounded-md bg-[#111111] dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-50 text-white dark:text-[#111111] text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer"
           >
-            <Send className="w-4 h-4" />
-            <span className="hidden sm:inline">ส่ง</span>
+            <Send className="w-3.5 h-3.5" />
+            <span>ส่ง</span>
           </button>
         </form>
       </div>

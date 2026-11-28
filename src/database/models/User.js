@@ -48,6 +48,26 @@ const User = sequelize.define('User', {
   avatar: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  notification_preferences: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  two_factor_enabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  two_factor_method: {
+    type: DataTypes.STRING(32),
+    defaultValue: 'authenticator'
+  },
+  language: {
+    type: DataTypes.STRING(16),
+    defaultValue: 'th'
+  },
+  theme_preference: {
+    type: DataTypes.STRING(16),
+    defaultValue: 'light'
   }
 }, {
   tableName: 'users',

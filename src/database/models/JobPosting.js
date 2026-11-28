@@ -38,6 +38,22 @@ const JobPosting = sequelize.define('JobPosting', {
     type: DataTypes.STRING(32),
     defaultValue: 'hybrid'
   },
+  employment_type: {
+    type: DataTypes.STRING(32),
+    defaultValue: 'full-time'
+  },
+  application_deadline: {
+    type: DataTypes.STRING(64),
+    allowNull: true
+  },
+  latitude: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  longitude: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
   description: {
     type: DataTypes.TEXT,
     allowNull: true

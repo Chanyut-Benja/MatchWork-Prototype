@@ -9,11 +9,13 @@ const profileRoutes = require('./profileRoutes');
 const matchingRoutes = require('./matchingRoutes');
 const adminRoutes = require('./adminRoutes');
 const messageRoutes = require('./messageRoutes');
+const settingsRoutes = require('./settingsRoutes');
 
 router.use('/', authRoutes);
 router.use('/', profileRoutes);
 router.use('/', matchingRoutes);
 router.use('/', adminRoutes);
 router.use('/', messageRoutes);
+router.use('/', settingsRoutes);
 
 module.exports = router;

@@ -9,6 +9,7 @@ const { authenticateToken } = require('../middlewares/authMiddleware');
 router.get('/feed', authenticateToken, matchingController.getFeed);
 router.post('/feed/reset', authenticateToken, matchingController.resetFeed);
 router.post('/interactions', authenticateToken, matchingController.createInteraction);
+router.post('/interactions/undo', authenticateToken, matchingController.undoLastInteraction);
 router.get('/interactions', authenticateToken, matchingController.getInteractions);
 router.delete('/interactions', authenticateToken, matchingController.deleteInteraction);
 router.get('/matches', authenticateToken, matchingController.getMatches);
